@@ -7,10 +7,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Roles{
-  SUPER ADMIN,
-  ADMIN,
-  EMPLOYEE  
+enum Role {
+  superadmin
+  admin
+  employee  
 }
 
 model User {
@@ -19,7 +19,9 @@ model User {
   email     String   @unique
   password  String 
 
-  role Roles @default(EMPLOYEE)
+  role Role @default(employee)
+
+  isActive Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

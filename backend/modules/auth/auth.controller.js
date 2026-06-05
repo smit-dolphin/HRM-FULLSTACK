@@ -1,13 +1,10 @@
-import { PrismaClient } from "@prisma/client"
-import errorResponse from "../helper/errorResponse.js"
-import successResponse from "../helper/successResponse.js"
+import errorResponse from "../../helper/errorResponse.js"
+import successResponse from "../../helper/successResponse.js"
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken"
-import z from "zod"
-import { signinSchema, signupSchema } from "../schema/authValidation.schema.js"
+import { signinSchema, signupSchema } from "./authValidation.schema.js"
+import prisma from "../../config/prisma.config.js"
 
-
-const prisma = new PrismaClient()
 
 export  async function signup(req, res) {
     try {
@@ -26,7 +23,7 @@ export  async function signup(req, res) {
         // const {name,email,password} =req.body
 
         const ifuserExist = await prisma.user.findUnique({ where: { email } })
-        console.log(ifuserExist)
+        
         if (ifuserExist) {
             return errorResponse(res, 400, "failed to signup", "user already exist")
         }
@@ -74,6 +71,9 @@ export async function signin(req,res){
         if(!existingUser){
           return errorResponse(res,400,"something went wrong","user not exist")    
         }
+        if(!existingUser.isActive){
+            return errorResponse(res,401,"failed to autherize user","your account has been deactivated")
+        }
         const iscorrectpassword=await bcrypt.compare(password,existingUser.password)
         if(!iscorrectpassword){
           return errorResponse(res,400,"something went wrong","password is incorrect")    
@@ -84,13 +84,17 @@ export async function signin(req,res){
             id:existingUser.id,
             name:existingUser.name,
             email:existingUser.email,
+            role:existingUser.role,
+            isActive:existingUser.isActive,
+            createdAt:existingUser.createdAt,
+            updatedAt:existingUser.updatedAt,
 
         }
         return res.status(200).cookie('accessToken', accessToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "strict",
-            maxAge: 7 * 24 * 60 * 60 * 1000
+            maxAge:  60 * 60 * 1000
         }).json({success:true,message:"user loggedin successfully",data:newuserdata})
 
 

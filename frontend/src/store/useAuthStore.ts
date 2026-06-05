@@ -7,6 +7,7 @@ interface User {
   name: string;
   email: string;
   role: Role;
+  isActive: boolean;
   avatar?: string;
 }
 
@@ -19,12 +20,13 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: {
-    id: '1',
-    name: 'Jane Doe',
-    email: 'jane@company.com',
-    role: 'Admin', // Default to Admin for testing
+    id: '',
+    name: '',
+    email: '',
+    isActive: true,
+    role: 'Employee', // Default to Admin for testing
   },
-  isAuthenticated: true,
+  isAuthenticated: false,
   login: (user) => set({ user, isAuthenticated: true }),
   logout: () => set({ user: null, isAuthenticated: false }),
 }));

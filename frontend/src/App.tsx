@@ -6,10 +6,12 @@ import { Dashboard } from '@/pages/Dashboard';
 import { Employees } from '@/pages/Employees';
 import { Leaves } from '@/pages/Leaves';
 import { LoginPage } from '@/pages/LoginPage';
+import { Toaster } from 'sonner';
 
 function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <Toaster richColors position="top-right" />
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />

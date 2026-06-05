@@ -1,9 +1,13 @@
-import React from 'react';
 import { LockKeyhole, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { loginSchema, type LoginFormData } from '@/schemas/auth.schema';
+import { signinService } from '@/services/authService/authService';
+import { toast } from 'sonner';
 
 type LoginFormProps = {
   onSuccess?: () => void;
@@ -11,20 +15,23 @@ type LoginFormProps = {
 
 export function LoginForm({ onSuccess }: LoginFormProps) {
   const { login } = useAuthStore();
-  const [email, setEmail] = React.useState('jane@company.com');
-  const [password, setPassword] = React.useState('');
 
-  const handleSubmit = (event: React.FormEvent) => {
-    event.preventDefault();
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+  });
 
-    login({
-      id: '1',
-      name: 'Jane Doe',
-      email,
-      role: 'Admin',
-    });
-
-    onSuccess?.();
+  const onSubmit = async (data: LoginFormData) => {
+    try {
+      const res = await signinService(data);
+      if (res.success) {
+        login(res.data);
+        toast.success(res.message);
+        onSuccess?.();
+      }
+    } catch (error: any) {
+      const message = error.response?.data?.message || error.response?.data?.error || "Login failed";
+      toast.error(message);
+    }
   };
 
   return (
@@ -34,7 +41,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         <CardDescription>Enter your credentials to continue.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="space-y-4" onSubmit={handleSubmit}>
+        <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-700" htmlFor="email">
               Email
@@ -44,13 +51,12 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
               <Input
                 id="email"
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                {...register("email")}
                 className="h-11 pl-10"
                 placeholder="you@example.com"
-                required
               />
             </div>
+            {errors.email && <p className="text-sm text-red-500">{errors.email.message}</p>}
           </div>
 
           <div className="space-y-2">
@@ -62,17 +68,16 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
               <Input
                 id="password"
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                {...register("password")}
                 className="h-11 pl-10"
                 placeholder="••••••••"
-                required
               />
             </div>
+            {errors.password && <p className="text-sm text-red-500">{errors.password.message}</p>}
           </div>
 
-          <Button type="submit" className="h-11 w-full rounded-xl">
-            Sign in
+          <Button type="submit" className="h-11 w-full rounded-xl" disabled={isSubmitting}>
+            {isSubmitting ? "Signing in..." : "Sign in"}
           </Button>
         </form>
       </CardContent>

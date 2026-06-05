@@ -6,7 +6,7 @@ import { signinSchema, signupSchema } from "./authValidation.schema.js"
 import prisma from "../../config/prisma.config.js"
 
 
-export  async function signup(req, res) {
+export async function signup(req, res) {
     try {
         //what will be my goal??? is is authentication
         //get data of user 
@@ -23,7 +23,7 @@ export  async function signup(req, res) {
         // const {name,email,password} =req.body
 
         const ifuserExist = await prisma.user.findUnique({ where: { email } })
-        
+
         if (ifuserExist) {
             return errorResponse(res, 400, "failed to signup", "user already exist")
         }
@@ -39,12 +39,12 @@ export  async function signup(req, res) {
         if (!createdUser) {
             return errorResponse(res, 500, "failed to create user", "something went worng while creating user")
         }
-        const newuserdata={
-            id:createdUser.id,
-            name:createdUser.name,
-            email:createdUser.email,
+        const newuserdata = {
+            id: createdUser.id,
+            name: createdUser.name,
+            email: createdUser.email,
         }
-        
+
         return successResponse(res, 201, "user created successfully", newuserdata)
 
 
@@ -54,7 +54,7 @@ export  async function signup(req, res) {
 }
 
 
-export async function signin(req,res){
+export async function signin(req, res) {
     try {
         //what is my goall??
         //user provide email and password
@@ -63,43 +63,58 @@ export async function signin(req,res){
         //then reurn token
 
         const result = signinSchema.safeParse(req.body)
-        if(!result.success){
-            return errorResponse(res,400,"failed to login",result.error.issues[0].message)
+        if (!result.success) {
+            return errorResponse(res, 400, "failed to login", result.error.issues[0].message)
         }
-        const {email,password}=result.data
-        const existingUser = await prisma.user.findUnique({where:{email}})
-        if(!existingUser){
-          return errorResponse(res,400,"something went wrong","user not exist")    
+        const { email, password } = result.data
+        const existingUser = await prisma.user.findUnique({ where: { email } })
+        if (!existingUser) {
+            return errorResponse(res, 400, "something went wrong", "user not exist")
         }
-        if(!existingUser.isActive){
-            return errorResponse(res,401,"failed to autherize user","your account has been deactivated")
+        if (!existingUser.isActive) {
+            return errorResponse(res, 401, "failed to autherize user", "your account has been deactivated")
         }
-        const iscorrectpassword=await bcrypt.compare(password,existingUser.password)
-        if(!iscorrectpassword){
-          return errorResponse(res,400,"something went wrong","password is incorrect")    
+        const iscorrectpassword = await bcrypt.compare(password, existingUser.password)
+        if (!iscorrectpassword) {
+            return errorResponse(res, 400, "something went wrong", "password is incorrect")
         }
 
-        const accessToken =  jwt.sign({ id: existingUser.id }, process.env.JWT_SECRET_KEY, { expiresIn: 60*60 })
-        const newuserdata={
-            id:existingUser.id,
-            name:existingUser.name,
-            email:existingUser.email,
-            role:existingUser.role,
-            isActive:existingUser.isActive,
-            createdAt:existingUser.createdAt,
-            updatedAt:existingUser.updatedAt,
+        const accessToken = jwt.sign({ id: existingUser.id }, process.env.JWT_SECRET_KEY, { expiresIn: 60 * 60 })
+        const newuserdata = {
+            id: existingUser.id,
+            name: existingUser.name,
+            email: existingUser.email,
+            role: existingUser.role,
+            isActive: existingUser.isActive,
+            createdAt: existingUser.createdAt,
+            updatedAt: existingUser.updatedAt,
 
         }
         return res.status(200).cookie('accessToken', accessToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "strict",
-            maxAge:  60 * 60 * 1000
-        }).json({success:true,message:"user loggedin successfully",data:newuserdata})
+            maxAge: 60 * 60 * 1000
+        }).json({ success: true, message: "user loggedin successfully", data: newuserdata })
 
 
-        
+
     } catch (error) {
-        return errorResponse(res,500,"something went wrong",error.message)
+        return errorResponse(res, 500, "something went wrong", error.message)
+    }
+}
+
+
+export async function signout(req, res) {
+    try {
+        return res.status(200).clearCookie("accessToken", {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict",
+            path: "/",
+        }).json({ success: true, message: "user logged out successfully", })
+
+    } catch (error) {
+        return errorResponse(res, 500, "something went wrong", error.message)
     }
 }

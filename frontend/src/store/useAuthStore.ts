@@ -1,6 +1,8 @@
 import { create } from 'zustand';
+import { signoutService } from '@/services/authService/authService';
+import { toast } from 'sonner';
 
-type Role = 'Employee' | 'Admin' | 'Super Admin';
+type Role = 'employee' | 'admin' | 'superadmin';
 
 interface User {
   id: string;
@@ -19,14 +21,17 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  user: {
-    id: '',
-    name: '',
-    email: '',
-    isActive: true,
-    role: 'Employee', // Default to Admin for testing
-  },
+  user: null,
   isAuthenticated: false,
   login: (user) => set({ user, isAuthenticated: true }),
-  logout: () => set({ user: null, isAuthenticated: false }),
+  logout: async () => {
+    try {
+      const res = await signoutService();
+      toast.success(res.message);
+    } catch {
+      toast.error("Logout failed");
+    } finally {
+      set({ user: null, isAuthenticated: false });
+    }
+  },
 }));

@@ -21,10 +21,37 @@ model User {
 
   role Role @default(employee)
 
+  employeeId Employee? 
+
   isActive Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
-  
   }
+
+model Employee{
+  id String @id @default(cuid())
+  userId String @unique 
+  user User @relation(fields:[userId],references:[id])
+
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt  
+
+}
+
+model Designetion{
+  id String @id @default(cuid())
+  name String 
+
+  departmentId String 
+  department Department @relation(fields:[departmentId],references:[id])
+}
+
+model Department{
+  id String @id @default(cuid())
+  name String
+
+  designetions Designetion[] 
+}

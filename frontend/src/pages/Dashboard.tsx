@@ -61,7 +61,7 @@ const recentItems = [
 export function Dashboard() {
   return (
     <div className="space-y-6">
-      <section className="grid gap-4 xl:grid-cols-[1.7fr_0.9fr]">
+      {/* <section className="grid gap-4 xl:grid-cols-[1.7fr_0.9fr]">
         <Card className="overflow-hidden border-slate-200/70 bg-gradient-to-br from-white via-white to-slate-50 shadow-[0_12px_50px_rgba(15,23,42,0.08)]">
           <CardContent className="p-6 md:p-8">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
@@ -130,7 +130,7 @@ export function Dashboard() {
             </div>
           </CardContent>
         </Card>
-      </section>
+      </section> */}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {overview.map((item) => (

@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, type LoginFormData } from '@/schemas/auth.schema';
+import axios, { AxiosError } from 'axios';
 import { signinService } from '@/services/authService/authService';
 import { toast } from 'sonner';
 
@@ -28,8 +29,18 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         toast.success(res.message);
         onSuccess?.();
       }
-    } catch (error: any) {
-      const message = error.response?.data?.message || error.response?.data?.error || "Login failed";
+    } catch (error: unknown) {
+      let message = 'Login failed';
+      if (axios.isAxiosError(error)) {
+        const axiosError = error as AxiosError<any>;
+        message =
+          (axiosError.response?.data as any)?.message ||
+          (axiosError.response?.data as any)?.error ||
+          axiosError.message ||
+          message;
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
       toast.error(message);
     }
   };

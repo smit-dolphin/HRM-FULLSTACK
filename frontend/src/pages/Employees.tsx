@@ -1,13 +1,14 @@
 import React from 'react'
 import { createColumnHelper } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
-import { Download, Plus, ArrowUpDown, MoreVertical } from 'lucide-react'
+import { Download, Plus, ArrowUpDown } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { DataTable } from '@/components/ui/DataTable'
+import { ActionMenu } from '@/components/ui/ActionMenu'
 import { exportToExcel } from '@/utils/exportToExcel'
 import { DialogForm, FormField, FormSelect, FormActions } from '@/components/forms/DialogForm'
 import {
@@ -43,7 +44,6 @@ export function Employees() {
   const [addOpen, setAddOpen] = React.useState(false)
   const [editOpen, setEditOpen] = React.useState(false)
   const [editingEmployee, setEditingEmployee] = React.useState<EmployeeRow | null>(null)
-  const [openMenuId, setOpenMenuId] = React.useState<string | null>(null)
 
   // Dropdown options
   const [users, setUsers] = React.useState<{ value: string; label: string }[]>([])
@@ -125,7 +125,6 @@ export function Employees() {
     setEditingEmployee(row)
     editForm.reset({ departmentId: row.departmentId, designationId: row.designationId })
     setEditOpen(true)
-    setOpenMenuId(null)
   }
 
   const onCreateEmployee = async (formData: CreateEmployeeFormData) => {
@@ -168,7 +167,6 @@ export function Employees() {
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to update block status')
     }
-    setOpenMenuId(null)
   }
 
   const handleDelete = async (id: string) => {
@@ -181,7 +179,6 @@ export function Employees() {
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to delete employee')
     }
-    setOpenMenuId(null)
   }
 
   const columns = [
@@ -213,20 +210,11 @@ export function Employees() {
       cell: (info) => {
         const row = info.row.original
         return (
-          <div className="relative">
-            <button onClick={() => setOpenMenuId(openMenuId === row.id ? null : row.id)} className="p-1 rounded hover:bg-muted">
-              <MoreVertical className="w-5 h-5" />
-            </button>
-            {openMenuId === row.id && (
-              <div className="absolute right-0 z-10 mt-2 w-40 rounded-md border bg-card p-1 shadow">
-                <button onClick={() => handleOpenEdit(row)} className="w-full text-left px-2 py-1 text-sm hover:bg-muted rounded">Edit</button>
-                <button onClick={() => handleToggleBlock(row)} className="w-full text-left px-2 py-1 text-sm hover:bg-muted rounded">
-                  {row.isBlocked ? 'Unblock' : 'Block'}
-                </button>
-                <button onClick={() => handleDelete(row.id)} className="w-full text-left px-2 py-1 text-sm text-destructive hover:bg-muted rounded">Delete</button>
-              </div>
-            )}
-          </div>
+          <ActionMenu items={[
+            { label: 'Edit', onClick: () => handleOpenEdit(row) },
+            { label: row.isBlocked ? 'Unblock' : 'Block', onClick: () => handleToggleBlock(row) },
+            { label: 'Delete', onClick: () => handleDelete(row.id), variant: 'danger' },
+          ]} />
         )
       },
     }),

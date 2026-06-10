@@ -1,13 +1,14 @@
 import React from 'react'
 import { createColumnHelper } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
-import { Download, Plus, ArrowUpDown, MoreVertical } from 'lucide-react'
+import { Download, Plus, ArrowUpDown } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { DataTable } from '@/components/ui/DataTable'
+import { ActionMenu } from '@/components/ui/ActionMenu'
 import { exportToExcel } from '@/utils/exportToExcel'
 import { DialogForm, FormField, FormInput, FormSelect, FormActions } from '@/components/forms/DialogForm'
 import {
@@ -44,7 +45,6 @@ export function Users() {
   const [addOpen, setAddOpen] = React.useState(false)
   const [editOpen, setEditOpen] = React.useState(false)
   const [editingUser, setEditingUser] = React.useState<UserRow | null>(null)
-  const [openMenuId, setOpenMenuId] = React.useState<string | null>(null)
 
   const createForm = useForm<CreateUserFormData>({ resolver: zodResolver(createUserSchema) })
   const editForm = useForm<UpdateUserFormData>({ resolver: zodResolver(updateUserSchema) })
@@ -75,7 +75,6 @@ export function Users() {
     setEditingUser(row)
     editForm.reset({ name: row.name, email: row.email, role: row.role, isActive: row.isActive })
     setEditOpen(true)
-    setOpenMenuId(null)
   }
 
   const onCreateUser = async (formData: CreateUserFormData) => {
@@ -118,7 +117,6 @@ export function Users() {
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to deactivate user')
     }
-    setOpenMenuId(null)
   }
 
   const handleDelete = async (id: string) => {
@@ -131,7 +129,6 @@ export function Users() {
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to delete user')
     }
-    setOpenMenuId(null)
   }
 
   const columns = [
@@ -162,18 +159,11 @@ export function Users() {
       cell: (info) => {
         const row = info.row.original
         return (
-          <div className="relative">
-            <button onClick={() => setOpenMenuId(openMenuId === row.id ? null : row.id)} className="p-1 rounded hover:bg-muted">
-              <MoreVertical className="w-5 h-5" />
-            </button>
-            {openMenuId === row.id && (
-              <div className="absolute right-0 z-10 mt-2 w-40 rounded-md border bg-card p-1 shadow">
-                <button onClick={() => handleOpenEdit(row)} className="w-full text-left px-2 py-1 text-sm hover:bg-muted rounded">Edit</button>
-                <button onClick={() => handleDeactivate(row.id)} className="w-full text-left px-2 py-1 text-sm hover:bg-muted rounded">Deactivate</button>
-                <button onClick={() => handleDelete(row.id)} className="w-full text-left px-2 py-1 text-sm text-destructive hover:bg-muted rounded">Delete</button>
-              </div>
-            )}
-          </div>
+          <ActionMenu items={[
+            { label: 'Edit', onClick: () => handleOpenEdit(row) },
+            { label: 'Deactivate', onClick: () => handleDeactivate(row.id) },
+            { label: 'Delete', onClick: () => handleDelete(row.id), variant: 'danger' },
+          ]} />
         )
       },
     }),

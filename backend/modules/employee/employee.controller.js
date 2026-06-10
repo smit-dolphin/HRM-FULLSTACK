@@ -82,6 +82,26 @@ export async function createEmployee(req, res) {
         if (ifEmployeeExist) {
             return errorResponse(res, 400, "employee already exist with this user id", "failed to create employee")
         }
+
+        const ifuserexist=await prisma.user.findUnique({where:{id:userId}})
+        if (!ifuserexist) {
+            return errorResponse(res, 400, "user not found with this id", "failed to create employee")
+        }
+
+        const ifdepartmentExist=await prisma.department.findUnique({where:{id:departmentId}})
+        if (!ifdepartmentExist){
+                return errorResponse(res, 400, "department not found with this id", "failed to create employee")    
+        }
+
+        const ifdesignationExist=await prisma.designation.findUnique({where:{id:designationId}})
+        if (!ifdesignationExist){
+            return errorResponse(res, 400, "designation not found with this id", "failed to create employee")
+        }
+
+        if(ifdesignationExist.departmentId!==departmentId){
+            return errorResponse(res, 400, "designation not valid with this id", "failed to create employee")
+        }
+
         const newEmplyee = await prisma.employee.create({
             data: {
                 userId,
@@ -148,9 +168,28 @@ export async function updateEmployee(req, res) {
         }
         const { departmentId, designationId, isBlocked } = result.data
 
-        const isEmployeeExist = await prisma.employee.findUnique({ where: { id } })
-        if (!isEmployeeExist) {
-            return errorResponse(res, 400, "failed to update", "invalid employee id ")
+        const existingEmployee = await prisma.employee.findUnique({ where: { id } })
+        if (!existingEmployee) {
+            return errorResponse(res, 400, "failed to update", "invalid employee id")
+        }
+
+        // Determine final departmentId and designationId for validation
+        const finalDeptId = departmentId || existingEmployee.departmentId
+        const finalDesigId = designationId || existingEmployee.designationId
+
+        // If either changed, validate the relationship
+        if (departmentId || designationId) {
+            if (departmentId) {
+                const deptExists = await prisma.department.findUnique({ where: { id: departmentId } })
+                if (!deptExists) return errorResponse(res, 400, "department not found")
+            }
+            if (designationId) {
+                const desigExists = await prisma.designation.findUnique({ where: { id: finalDesigId } })
+                if (!desigExists) return errorResponse(res, 400, "designation not found")
+                if (desigExists.departmentId !== finalDeptId) {
+                    return errorResponse(res, 400, "designation does not belong to this department")
+                }
+            }
         }
 
         const updatedEmployee = await prisma.employee.update({
@@ -160,7 +199,7 @@ export async function updateEmployee(req, res) {
                 isBlocked
             }
         })
-        return successResponse(res, 200, "employees updated successfully", updatedEmployee)
+        return successResponse(res, 200, "employee updated successfully", updatedEmployee)
 
     } catch (error) {
         return errorResponse(res, 500, "something went wrong", error.message)

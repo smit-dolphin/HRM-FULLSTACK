@@ -18,16 +18,16 @@ app.use(express.json())
 app.use(express.urlencoded({extended:true}))
 app.use(cookieParser())
 
-const createhelper=async ()=>{
-    await prisma.employee.create({
-        data:{
-            userId:"cmq0kl4e10000vjioo9jnnxgu",
-            departmentId:"cmq6l9tje0000vjs09glsr4sz",
-
-            
-        }
-    })
-}
+// const createhelper=async ()=>{
+//     await prisma.user.create({
+//                 data: {
+//                     name:"smit",
+//                     email:"smitgajjar@gmail.com",
+//                     password:"user@123",
+//                     role:"superadmin"
+//                 }
+//             })
+// }
 
 // createhelper()
 

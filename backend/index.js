@@ -5,6 +5,8 @@ import { authRouter } from "./modules/auth/auth.route.js"
 import cookieParser from "cookie-parser"
 import cors from "cors"
 import { employeeRouter } from "./modules/employee/employee.route.js"
+import { departmentRouter } from "./modules/department/department.route.js"
+import { designationRouter } from "./modules/designation/designation.route.js"
 // import prisma from "./config/prisma.config.js"
 
 const app = express()
@@ -32,6 +34,8 @@ app.use(cookieParser())
 app.use('/api/user',userRouter)
 app.use('/api/auth', authRouter)
 app.use('/api/employee',employeeRouter)
+app.use('/api/department',departmentRouter)
+app.use('/api/designation',designationRouter)
 
 app.listen(process.env.PORT, () => {
     console.log("Server running on PORT", process.env.PORT)

@@ -33,7 +33,8 @@ export async function fetchAllUsers(req, res) {
 
         // const totalusers = await prisma.$queryRaw`
         // SELECT COUNT(*) FROM "User";`
-        const totalusers =await prisma.user.findMany({})
+        const totalusers = await prisma.user.count()
+
         
         
         const totalusersno = Number(totalusers[0].count)

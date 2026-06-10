@@ -1,22 +1,33 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { ProtectedLayout } from '@/components/layout/ProtectedLayout';
 import { Dashboard } from '@/pages/Dashboard';
 import { Employees } from '@/pages/Employees';
 import { Leaves } from '@/pages/Leaves';
+import { Users } from '@/pages/Users';
+import { LoginPage } from '@/pages/LoginPage';
+import { Toaster } from 'sonner';
 
 function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <Toaster richColors position="top-right" />
       <BrowserRouter>
         <Routes>
-          <Route element={<AppLayout />}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/employees" element={<Employees />} />
-            <Route path="/leaves" element={<Leaves />} />
-            <Route path="/settings" element={<div className="p-8">Settings (Coming Soon)</div>} />
+          <Route path="/login" element={<LoginPage />} />
+
+          <Route element={<ProtectedLayout />}>
+            <Route element={<AppLayout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="users" element={<Users />} />
+              <Route path="employees" element={<Employees />} />
+              <Route path="leaves" element={<Leaves />} />
+              <Route path="settings" element={<div className="p-8">Settings (Coming Soon)</div>} />
+            </Route>
           </Route>
+
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>

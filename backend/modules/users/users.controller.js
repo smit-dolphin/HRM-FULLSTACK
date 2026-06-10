@@ -31,8 +31,10 @@ export async function fetchAllUsers(req, res) {
 
         const limit = Math.max(1, Number(req.query.limit) || 10)
 
-        const totalusers = await prisma.$queryRaw`
-        SELECT COUNT(*) FROM "User";`
+        // const totalusers = await prisma.$queryRaw`
+        // SELECT COUNT(*) FROM "User";`
+        const totalusers = await prisma.user.count()
+
         
         
         const totalusersno = Number(totalusers[0].count)
@@ -40,15 +42,34 @@ export async function fetchAllUsers(req, res) {
         const totalPages = Math.ceil(totalData / limit)
         const currentPage = Math.max(1, Number(req.query.page) || 1)
 
+        //querry params??
+        // 
+
         // if page given there set offset from that page so page , page*limit
-        const allUsers = await prisma.$queryRaw`
-        SELECT id, name, email,role,"isActive", "createdAt", "updatedAt" FROM "User" ORDER BY "createdAt" DESC LIMIT ${limit} 
-        OFFSET ${currentPage > 0 ? (currentPage - 1) * limit : 0};`
+        // const allUsers = await prisma.$queryRaw`
+        // SELECT id, name, email,role,"isActive", "createdAt", "updatedAt" FROM "User" ORDER BY "createdAt" DESC LIMIT ${limit} 
+        // OFFSET ${currentPage > 0 ? (currentPage - 1) * limit : 0};`
+
+        const currentScope=currentPage > 0 ? (currentPage - 1) * limit : 0
+
+        const allUsers=await prisma.user.findMany({
+            take: limit,
+            skip:currentScope,
+            orderBy:{createdAt:"desc"},
+            select:{
+                id:true,
+                name:true, 
+                email:true,
+                role:true,
+                isActive:true,
+                createdAt:true, 
+                updatedAt:true
+            }
+        })
+
         const itemPerPage = allUsers.length
 
-        // if (allUsers.length === 0) {
-        //     return errorResponse(res, 404, "Users Not Found")
-        // }
+        
 
         return successResponse(res, 200, "users fetched successfully", allUsers, { totalData, totalPages, currentPage, itemPerPage })
     } catch (err) {

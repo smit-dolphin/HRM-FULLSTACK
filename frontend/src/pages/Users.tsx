@@ -2,67 +2,139 @@ import React from 'react'
 import { createColumnHelper } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
 import { Download, Plus, ArrowUpDown, MoreVertical } from 'lucide-react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { toast } from 'sonner'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { DataTable } from '@/components/ui/DataTable'
 import { exportToExcel } from '@/utils/exportToExcel'
 import { DialogForm, FormField, FormInput, FormSelect, FormActions } from '@/components/forms/DialogForm'
-import { fetchUsersService, type User } from '@/services/userService/userService'
+import {
+  fetchUsersService,
+  createUserService,
+  updateUserService,
+  deleteUserService,
+  deactivateUserService,
+  type User,
+} from '@/services/userService/userService'
+import { createUserSchema, updateUserSchema, type CreateUserFormData, type UpdateUserFormData } from '@/schemas/user.schema'
 
 type UserRow = {
   id: string
   name: string
   email: string
-  role: string
+  role: 'employee' | 'admin' | 'superadmin'
+  isActive: boolean
   status: 'Active' | 'Inactive'
   createdAt: string
 }
 
 const columnHelper = createColumnHelper<UserRow>()
 
+const roleOptions = [
+  { value: 'employee', label: 'Employee' },
+  { value: 'admin', label: 'Admin' },
+  { value: 'superadmin', label: 'Super Admin' },
+]
+
 export function Users() {
   const [data, setData] = React.useState<UserRow[]>([])
   const [loading, setLoading] = React.useState(true)
   const [addOpen, setAddOpen] = React.useState(false)
+  const [editOpen, setEditOpen] = React.useState(false)
+  const [editingUser, setEditingUser] = React.useState<UserRow | null>(null)
   const [openMenuId, setOpenMenuId] = React.useState<string | null>(null)
 
-  const [newName, setNewName] = React.useState('')
-  const [newEmail, setNewEmail] = React.useState('')
-  const [newRole, setNewRole] = React.useState<'employee' | 'admin' | 'superadmin'>('employee')
-  const [newActive, setNewActive] = React.useState(true)
+  const createForm = useForm<CreateUserFormData>({ resolver: zodResolver(createUserSchema) })
+  const editForm = useForm<UpdateUserFormData>({ resolver: zodResolver(updateUserSchema) })
 
-  React.useEffect(() => {
-    let isMounted = true
-
-    const loadUsers = async () => {
-      try {
-        setLoading(true)
-        const response = await fetchUsersService(1, 100)
-        if (!isMounted) return
-
-        const mappedData: UserRow[] = response.data.map((user: User) => ({
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          status: user.isActive ? 'Active' : 'Inactive',
-          createdAt: user.createdAt,
-        }))
-
-        setData(mappedData)
-      } catch (error) {
-        console.error('Failed to fetch users', error)
-      } finally {
-        if (isMounted) setLoading(false)
-      }
+  const loadUsers = async () => {
+    try {
+      setLoading(true)
+      const response = await fetchUsersService(1, 100)
+      setData(response.data.map((user: User) => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+        status: user.isActive ? 'Active' : 'Inactive',
+        createdAt: user.createdAt,
+      })))
+    } catch (error) {
+      toast.error('Failed to fetch users')
+    } finally {
+      setLoading(false)
     }
+  }
 
-    loadUsers()
-    return () => { isMounted = false }
-  }, [])
+  React.useEffect(() => { loadUsers() }, [])
+
+  const handleOpenEdit = (row: UserRow) => {
+    setEditingUser(row)
+    editForm.reset({ name: row.name, email: row.email, role: row.role, isActive: row.isActive })
+    setEditOpen(true)
+    setOpenMenuId(null)
+  }
+
+  const onCreateUser = async (formData: CreateUserFormData) => {
+    try {
+      const res = await createUserService(formData)
+      if (res.success) {
+        toast.success(res.message)
+        setAddOpen(false)
+        createForm.reset()
+        loadUsers()
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to create user')
+    }
+  }
+
+  const onUpdateUser = async (formData: UpdateUserFormData) => {
+    if (!editingUser) return
+    try {
+      const res = await updateUserService(editingUser.id, formData)
+      if (res.success) {
+        toast.success(res.message)
+        setEditOpen(false)
+        editForm.reset()
+        setEditingUser(null)
+        loadUsers()
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to update user')
+    }
+  }
+
+  const handleDeactivate = async (id: string) => {
+    try {
+      const res = await deactivateUserService(id)
+      if (res.success) {
+        toast.success(res.message)
+        loadUsers()
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to deactivate user')
+    }
+    setOpenMenuId(null)
+  }
+
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await deleteUserService(id)
+      if (res.success) {
+        toast.success(res.message)
+        loadUsers()
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to delete user')
+    }
+    setOpenMenuId(null)
+  }
 
   const columns = [
-    columnHelper.accessor('id', { header: 'ID', cell: (info) => <span className="font-medium">{info.getValue()}</span> }),
     columnHelper.accessor('name', {
       header: ({ column }) => (
         <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')} className="-ml-4 h-8">
@@ -88,20 +160,17 @@ export function Users() {
       id: 'actions',
       header: 'Actions',
       cell: (info) => {
-        const id = info.row.original.id
+        const row = info.row.original
         return (
           <div className="relative">
-            <button
-              onClick={() => setOpenMenuId(openMenuId === id ? null : id)}
-              className="p-1 rounded hover:bg-muted"
-            >
+            <button onClick={() => setOpenMenuId(openMenuId === row.id ? null : row.id)} className="p-1 rounded hover:bg-muted">
               <MoreVertical className="w-5 h-5" />
             </button>
-            {openMenuId === id && (
+            {openMenuId === row.id && (
               <div className="absolute right-0 z-10 mt-2 w-40 rounded-md border bg-card p-1 shadow">
-                <button className="w-full text-left px-2 py-1 text-sm hover:bg-muted rounded">Edit</button>
-                <button className="w-full text-left px-2 py-1 text-sm hover:bg-muted rounded">Deactivate</button>
-                <button className="w-full text-left px-2 py-1 text-sm text-destructive hover:bg-muted rounded">Delete</button>
+                <button onClick={() => handleOpenEdit(row)} className="w-full text-left px-2 py-1 text-sm hover:bg-muted rounded">Edit</button>
+                <button onClick={() => handleDeactivate(row.id)} className="w-full text-left px-2 py-1 text-sm hover:bg-muted rounded">Deactivate</button>
+                <button onClick={() => handleDelete(row.id)} className="w-full text-left px-2 py-1 text-sm text-destructive hover:bg-muted rounded">Delete</button>
               </div>
             )}
           </div>
@@ -129,44 +198,48 @@ export function Users() {
         emptyMessage="No users found."
       />
 
-      <DialogForm open={addOpen} onClose={() => setAddOpen(false)} title="Add User" subtitle="Create a new user account">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            const newUser: UserRow = {
-              id: String(Date.now()),
-              name: newName,
-              email: newEmail,
-              role: newRole,
-              status: newActive ? 'Active' : 'Inactive',
-              createdAt: new Date().toISOString(),
-            }
-            setData((prev) => [newUser, ...prev])
-            setAddOpen(false)
-            setNewName('')
-            setNewEmail('')
-            setNewRole('employee')
-            setNewActive(true)
-          }}
-        >
+      {/* Add User Dialog */}
+      <DialogForm open={addOpen} onClose={() => { setAddOpen(false); createForm.reset() }} title="Add User" subtitle="Create a new user account">
+        <form onSubmit={createForm.handleSubmit(onCreateUser)}>
           <div className="space-y-4">
-            <FormField label="Full name" required>
-              <FormInput value={newName} onChange={(e) => setNewName(e.target.value)} />
+            <FormField label="Full name" required error={createForm.formState.errors.name?.message}>
+              <FormInput {...createForm.register('name')} error={!!createForm.formState.errors.name} placeholder="John Doe" />
             </FormField>
-            <FormField label="Email" required>
-              <FormInput value={newEmail} onChange={(e) => setNewEmail(e.target.value)} type="email" />
+            <FormField label="Email" required error={createForm.formState.errors.email?.message}>
+              <FormInput {...createForm.register('email')} error={!!createForm.formState.errors.email} type="email" placeholder="john@company.com" />
             </FormField>
-            <FormField label="Role" required>
-              <FormSelect value={newRole} onChange={(e) => setNewRole(e.target.value as any)} options={[{ value: 'employee', label: 'Employee' }, { value: 'admin', label: 'Admin' }, { value: 'superadmin', label: 'Super Admin' }]} />
+            <FormField label="Password" required error={createForm.formState.errors.password?.message}>
+              <FormInput {...createForm.register('password')} error={!!createForm.formState.errors.password} type="password" placeholder="••••••••" />
             </FormField>
-            <FormField label="Active">
+            <FormField label="Role" required error={createForm.formState.errors.role?.message}>
+              <FormSelect {...createForm.register('role')} error={!!createForm.formState.errors.role} options={roleOptions} placeholder="Select role" />
+            </FormField>
+          </div>
+          <FormActions onCancel={() => { setAddOpen(false); createForm.reset() }} submitLabel="Create" isSubmitting={createForm.formState.isSubmitting} />
+        </form>
+      </DialogForm>
+
+      {/* Edit User Dialog */}
+      <DialogForm open={editOpen} onClose={() => { setEditOpen(false); editForm.reset(); setEditingUser(null) }} title="Edit User" subtitle={`Editing ${editingUser?.name ?? ''}`}>
+        <form onSubmit={editForm.handleSubmit(onUpdateUser)}>
+          <div className="space-y-4">
+            <FormField label="Full name" error={editForm.formState.errors.name?.message}>
+              <FormInput {...editForm.register('name')} error={!!editForm.formState.errors.name} placeholder="John Doe" />
+            </FormField>
+            <FormField label="Email" error={editForm.formState.errors.email?.message}>
+              <FormInput {...editForm.register('email')} error={!!editForm.formState.errors.email} type="email" placeholder="john@company.com" />
+            </FormField>
+            <FormField label="Role" error={editForm.formState.errors.role?.message}>
+              <FormSelect {...editForm.register('role')} error={!!editForm.formState.errors.role} options={roleOptions} placeholder="Select role" />
+            </FormField>
+            <FormField label="Status">
               <div className="flex items-center gap-3">
-                <input type="checkbox" checked={newActive} onChange={(e) => setNewActive(e.target.checked)} />
+                <input type="checkbox" {...editForm.register('isActive')} />
                 <span className="text-sm text-muted-foreground">User is active</span>
               </div>
             </FormField>
           </div>
-          <FormActions onCancel={() => setAddOpen(false)} submitLabel="Create" />
+          <FormActions onCancel={() => { setEditOpen(false); editForm.reset(); setEditingUser(null) }} submitLabel="Update" isSubmitting={editForm.formState.isSubmitting} />
         </form>
       </DialogForm>
     </div>

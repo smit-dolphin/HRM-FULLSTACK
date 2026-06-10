@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Bell, Menu, ChevronLeft, ChevronRight, Search, ChevronDown, CircleUserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+// import { Input } from '@/components/ui/input';
 import { useAuthStore } from '@/store/useAuthStore';
 
 type HeaderProps = {
@@ -31,12 +31,12 @@ export function Header({ collapsed = false, onToggleCollapse, onOpenMobile }: He
           </div>
         </div>
 
-      <div className="hidden flex-1 px-6 xl:block">
+      {/* <div className="hidden flex-1 px-6 xl:block">
         <div className="relative mx-auto max-w-xl">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input className="h-11 rounded-full border-slate-200 bg-slate-50 pl-10 shadow-sm" placeholder="Search employees, payroll, or projects" />
         </div>
-      </div>
+      </div> */}
 
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" className="relative">

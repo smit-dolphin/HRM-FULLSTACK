@@ -21,8 +21,8 @@ const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
   { icon: UserRound, label: 'Users', path: '/users' },
   { icon: Users, label: 'Employees', path: '/employees' },
-  { icon: CalendarDays, label: 'Leave Requests', path: '/leaves' },
-  { icon: Settings, label: 'Settings', path: '/settings' },
+  // { icon: CalendarDays, label: 'Leave Requests', path: '/leaves' },
+  // { icon: Settings, label: 'Settings', path: '/settings' },
 ];
 
 type SidebarProps = {

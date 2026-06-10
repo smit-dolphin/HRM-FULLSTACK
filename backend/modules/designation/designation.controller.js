@@ -4,7 +4,7 @@ import successResponse from "../../helper/successResponse.js"
 
 export async function fetchAllDesignations(req, res) {
     try {
-        const designations = await prisma.designetion.findMany({
+        const designations = await prisma.designation.findMany({
             include: { department: true }
         })
         return successResponse(res, 200, "designations fetched successfully", designations)
@@ -18,7 +18,7 @@ export async function fetchDesignationById(req, res) {
         const { id } = req.params
         if (!id) return errorResponse(res, 400, "invalid designation id")
 
-        const designation = await prisma.designetion.findUnique({
+        const designation = await prisma.designation.findUnique({
             where: { id },
             include: { department: true }
         })

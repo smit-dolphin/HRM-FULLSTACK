@@ -12,7 +12,7 @@ baseApi.interceptors.response.use(
     },
     function (error){
         if (error.response?.status===401){
-            useAuthStore.getState().logout();
+            useAuthStore.getState().clearAuth();
             if (!window.location.pathname.includes('/login')){
                 window.location.href='/login';
             }

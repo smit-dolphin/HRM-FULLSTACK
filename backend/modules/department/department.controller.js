@@ -5,7 +5,7 @@ import successResponse from "../../helper/successResponse.js"
 export async function fetchAllDepartments(req, res) {
     try {
         const departments = await prisma.department.findMany({
-            include: { designetions: true }
+            include: { designations: true }
         })
         return successResponse(res, 200, "departments fetched successfully", departments)
     } catch (err) {
@@ -20,7 +20,7 @@ export async function fetchDepartmentById(req, res) {
 
         const department = await prisma.department.findUnique({
             where: { id },
-            include: { designetions: true }
+            include: { designations: true }
         })
 
         if (!department) return errorResponse(res, 404, "department not found")

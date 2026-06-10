@@ -7,7 +7,7 @@ import cors from "cors"
 import { employeeRouter } from "./modules/employee/employee.route.js"
 import { departmentRouter } from "./modules/department/department.route.js"
 import { designationRouter } from "./modules/designation/designation.route.js"
-// import prisma from "./config/prisma.config.js"
+import prisma from "./config/prisma.config.js"
 
 const app = express()
 app.use(cors({
@@ -18,14 +18,16 @@ app.use(express.json())
 app.use(express.urlencoded({extended:true}))
 app.use(cookieParser())
 
-// const createhelper=async ()=>{
-//     await prisma.designetion.create({
-//         data:{
-//             departmentId:"cmq6l9tje0000vjs09glsr4sz",
-//             name:"fullstack developer"
-//         }
-//     })
-// }
+const createhelper=async ()=>{
+    await prisma.employee.create({
+        data:{
+            userId:"cmq0kl4e10000vjioo9jnnxgu",
+            departmentId:"cmq6l9tje0000vjs09glsr4sz",
+
+            
+        }
+    })
+}
 
 // createhelper()
 

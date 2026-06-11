@@ -35,6 +35,8 @@ const columnHelper = createColumnHelper<UserRow>()
 
 const roleOptions = [
   { value: 'employee', label: 'Employee' },
+  { value: 'teamleader', label: 'Team Leader' },
+  { value: 'manager', label: 'Manager' },
   { value: 'admin', label: 'Admin' },
   { value: 'superadmin', label: 'Super Admin' },
 ]

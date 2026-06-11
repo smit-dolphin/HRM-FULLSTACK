@@ -3,7 +3,7 @@ import { signoutService } from '@/services/authService/authService';
 import { toast } from 'sonner';
 import { persist } from 'zustand/middleware';
 
-type Role = 'employee' | 'admin' | 'superadmin';
+type Role = 'employee' | 'admin' | 'manager' | 'teamleader' | 'superadmin';
 
 interface User {
   id: string;

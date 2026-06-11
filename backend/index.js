@@ -9,6 +9,10 @@ import { departmentRouter } from "./modules/department/department.route.js"
 import { designationRouter } from "./modules/designation/designation.route.js"
 import prisma from "./config/prisma.config.js"
 
+// import path from "path"
+// import { fileURLToPath } from "url"
+// const filename =fileURLToPath(import.meta.url)
+
 const app = express()
 app.use(cors({
     origin: process.env.CLIENT_URL || "http://localhost:5173",
@@ -38,6 +42,9 @@ app.use('/api/auth', authRouter)
 app.use('/api/employee',employeeRouter)
 app.use('/api/department',departmentRouter)
 app.use('/api/designation',designationRouter)
+
+
+// console.log(import.meta.dirname)
 
 app.listen(process.env.PORT, () => {
     console.log("Server running on PORT", process.env.PORT)

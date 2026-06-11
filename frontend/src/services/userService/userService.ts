@@ -1,10 +1,12 @@
 import baseApi from '@/api/baseApi';
 
+type Role = 'employee' | 'admin' | 'manager' | 'teamleader' | 'superadmin';
+
 export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'employee' | 'admin' | 'superadmin';
+  role: Role;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -32,13 +34,13 @@ export interface CreateUserPayload {
   name: string;
   email: string;
   password: string;
-  role: 'employee' | 'admin' | 'superadmin';
+  role: Role;
 }
 
 export interface UpdateUserPayload {
   name?: string;
   email?: string;
-  role?: 'employee' | 'admin' | 'superadmin';
+  role?: Role;
   isActive?: boolean;
 }
 

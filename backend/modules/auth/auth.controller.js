@@ -94,7 +94,7 @@ export async function signin(req, res) {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "strict",
-            maxAge: 60 * 60 * 1000
+            maxAge: 12* 60 * 60 * 1000
         }).json({ success: true, message: "user loggedin successfully", data: newuserdata })
 
 

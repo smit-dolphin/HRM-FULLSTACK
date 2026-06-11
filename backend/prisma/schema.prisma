@@ -10,6 +10,8 @@ datasource db {
 enum Role {
   superadmin
   admin
+  manager
+  teamleader
   employee  
 }
 
@@ -29,6 +31,8 @@ model User {
   updatedAt DateTime @updatedAt
   
   }
+
+
 model Employee {
   id String @id @default(cuid())
 

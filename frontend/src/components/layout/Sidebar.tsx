@@ -18,11 +18,13 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { cn } from '@/utils/cn';
 import { Button } from '@/components/ui/button';
 
-const navItems = [
+type Role = 'superadmin' | 'admin' | 'manager' | 'teamleader' | 'employee'
+
+const navItems: { icon: any; label: string; path: string; roles?: Role[] }[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-  { icon: UserRound, label: 'Users', path: '/users' },
-  { icon: Users, label: 'Employees', path: '/employees' },
-  { icon: Building2, label: 'Departments', path: '/departments' },
+  { icon: UserRound, label: 'Users', path: '/users', roles: ['superadmin'] },
+  { icon: Users, label: 'Employees', path: '/employees', roles: ['superadmin', 'admin', 'manager'] },
+  { icon: Building2, label: 'Departments', path: '/departments', roles: ['superadmin'] },
   // { icon: CalendarDays, label: 'Leave Requests', path: '/leaves' },
   // { icon: Settings, label: 'Settings', path: '/settings' },
 ];
@@ -76,7 +78,9 @@ export function Sidebar({ collapsed = false, mobileOpen = false, onCloseMobile, 
         </div>
 
         <nav className={cn("flex-1 space-y-1 overflow-y-auto p-3", compact && "px-2")}>
-          {navItems.map((item) => (
+          {navItems
+            .filter(item => !item.roles || item.roles.includes(user?.role as Role))
+            .map((item) => (
             <NavLink
               key={item.path}
               to={item.path}

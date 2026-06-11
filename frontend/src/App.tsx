@@ -6,6 +6,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { PageLoader } from '@/components/ui/PageLoader'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ProtectedLayout } from '@/components/layout/ProtectedLayout'
+import { RouteGuard } from '@/components/RouteGuard'
 
 // Lazy loaded pages
 const LoginPage = lazy(() => import('@/pages/LoginPage').then(m => ({ default: m.LoginPage })))
@@ -29,10 +30,10 @@ function App() {
               <Route element={<ProtectedLayout />}>
                 <Route element={<AppLayout />}>
                   <Route index element={<Dashboard />} />
-                  <Route path="users" element={<Users />} />
-                  <Route path="employees" element={<Employees />} />
-                  <Route path="departments" element={<Departments />} />
-                  <Route path="departments/:id" element={<DepartmentDetail />} />
+                  <Route path="users" element={<RouteGuard roles={['superadmin']}><Users /></RouteGuard>} />
+                  <Route path="employees" element={<RouteGuard roles={['superadmin', 'admin', 'manager']}><Employees /></RouteGuard>} />
+                  <Route path="departments" element={<RouteGuard roles={['superadmin']}><Departments /></RouteGuard>} />
+                  <Route path="departments/:id" element={<RouteGuard roles={['superadmin']}><DepartmentDetail /></RouteGuard>} />
                   <Route path="leaves" element={<Leaves />} />
                   <Route path="settings" element={<div className="p-8">Settings (Coming Soon)</div>} />
                 </Route>

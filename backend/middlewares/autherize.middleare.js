@@ -1,6 +1,10 @@
-export default async function(req,res,next){
+import errorResponse from "../helper/errorResponse.js"
 
-    //my goal is to identyfy user 
-    //and restrict opration with roles 
-    //check if given permission is recived by loggedin user ?? only then procced
+export default function autherize(...roles) {
+    return (req, res, next) => {
+        if (!roles.includes(req.user.role)) {
+            return errorResponse(res, 403, "forbidden", "you are not authorized to access this route")
+        }
+        next()
+    }
 }

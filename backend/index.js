@@ -8,6 +8,7 @@ import { employeeRouter } from "./modules/employee/employee.route.js"
 import { departmentRouter } from "./modules/department/department.route.js"
 import { designationRouter } from "./modules/designation/designation.route.js"
 import prisma from "./config/prisma.config.js"
+import { leaveRouter } from "./modules/leave/leave.route.js"
 
 // import path from "path"
 // import { fileURLToPath } from "url"
@@ -42,6 +43,7 @@ app.use('/api/auth', authRouter)
 app.use('/api/employee',employeeRouter)
 app.use('/api/department',departmentRouter)
 app.use('/api/designation',designationRouter)
+app.use('/api/leave',leaveRouter)
 
 
 // console.log(import.meta.dirname)

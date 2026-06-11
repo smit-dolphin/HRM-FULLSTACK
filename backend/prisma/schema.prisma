@@ -45,7 +45,36 @@ model Employee {
   designationId String
   designation Designation @relation(fields:[designationId], references:[id])
 
+  leaves Leave[]
+  
   isBlocked Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum LeaveType{
+  sick
+  paid
+  unpaid
+}
+enum LeaveStatus{
+  approved
+  pending
+  rejected
+}
+model Leave{
+  id String @id @default(cuid())
+  employeeId String
+  employee Employee @relation(fields:[employeeId], references:[id])
+
+  startDate DateTime
+  endDate DateTime
+  reason String
+  rejectionReason String?
+
+  leaveType LeaveType 
+  leaveStatus LeaveStatus @default(pending)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

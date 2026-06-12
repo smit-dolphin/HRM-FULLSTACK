@@ -176,11 +176,19 @@ export async function updateStatusLeave(req, res) {
         const getleave = await prisma.leave.findUnique({
             where: {
                 id,
+            },
+            include:{
+                employee:true
             }
         })
 
         if (!getleave) {
             return errorResponse(res, 400, "leave does not exist", "invalid leave id")
+        }
+
+        if (getleave.employee.id===actionEmployee.id){
+            return errorResponse(res, 403, "forbidden access restricted", "can't update own leave")
+            
         }
 
         if (getleave.leaveStatus === "approved" || getleave.leaveStatus === "rejected") {

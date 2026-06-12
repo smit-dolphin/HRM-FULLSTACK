@@ -14,6 +14,7 @@ const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m
 const Users = lazy(() => import('@/pages/Users').then(m => ({ default: m.Users })))
 const Employees = lazy(() => import('@/pages/Employees').then(m => ({ default: m.Employees })))
 const Leaves = lazy(() => import('@/pages/Leaves').then(m => ({ default: m.Leaves })))
+const ManageLeaves = lazy(() => import('@/pages/ManageLeaves').then(m => ({ default: m.ManageLeaves })))
 const Departments = lazy(() => import('@/pages/Departments').then(m => ({ default: m.Departments })))
 const DepartmentDetail = lazy(() => import('@/pages/DepartmentDetail').then(m => ({ default: m.DepartmentDetail })))
 
@@ -35,6 +36,7 @@ function App() {
                   <Route path="departments" element={<RouteGuard permission="department:view"><Departments /></RouteGuard>} />
                   <Route path="departments/:id" element={<RouteGuard permission="department:view"><DepartmentDetail /></RouteGuard>} />
                   <Route path="leaves" element={<RouteGuard permission="leave:view"><Leaves /></RouteGuard>} />
+                  <Route path="leaves/manage" element={<RouteGuard permission="leave:approve"><ManageLeaves /></RouteGuard>} />
                   <Route path="settings" element={<div className="p-8">Settings (Coming Soon)</div>} />
                 </Route>
               </Route>

@@ -1,25 +1,17 @@
 import React from 'react'
 import { createColumnHelper } from '@tanstack/react-table'
-import { Button } from '@/components/ui/button'
-import { Plus } from 'lucide-react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { DataTable } from '@/components/ui/DataTable'
 import { ActionMenu, type ActionMenuItem } from '@/components/ui/ActionMenu'
-import { DialogForm, FormField, FormInput, FormSelect, FormActions } from '@/components/forms/DialogForm'
 import { useAuthStore } from '@/store/useAuthStore'
 import {
   fetchAllLeavesService,
-  fetchMyLeavesService,
-  createLeaveService,
   updateLeaveStatusService,
   deleteLeaveService,
   type Leave,
 } from '@/services/leaveService/leaveService'
-import { createLeaveSchema, type CreateLeaveFormData } from '@/schemas/leave.schema'
 
 type LeaveRow = {
   id: string
@@ -33,30 +25,21 @@ type LeaveRow = {
 
 const columnHelper = createColumnHelper<LeaveRow>()
 
-const leaveTypeOptions = [
-  { value: 'sick', label: 'Sick Leave' },
-  { value: 'paid', label: 'Paid Leave' },
-  { value: 'unpaid', label: 'Unpaid Leave' },
-]
-
-export function Leaves() {
+export function ManageLeaves() {
   const { hasPermission } = useAuthStore()
   const [data, setData] = React.useState<LeaveRow[]>([])
   const [loading, setLoading] = React.useState(true)
-  const [addOpen, setAddOpen] = React.useState(false)
-
-  const createForm = useForm<CreateLeaveFormData>({ resolver: zodResolver(createLeaveSchema) })
 
   const canApprove = hasPermission('leave:approve')
 
   const loadLeaves = async () => {
     try {
       setLoading(true)
-      const response = await fetchMyLeavesService()
+      const response = await fetchAllLeavesService()
 
       setData(response.data.map((leave: Leave) => ({
         id: leave.id,
-        employeeName: 'You',
+        employeeName: leave.employee?.user?.name ?? 'Unknown',
         leaveType: leave.leaveType,
         startDate: leave.startDate,
         endDate: leave.endDate,
@@ -71,20 +54,6 @@ export function Leaves() {
   }
 
   React.useEffect(() => { loadLeaves() }, [])
-
-  const onCreateLeave = async (formData: CreateLeaveFormData) => {
-    try {
-      const res = await createLeaveService(formData)
-      if (res.success) {
-        toast.success(res.message)
-        setAddOpen(false)
-        createForm.reset()
-        loadLeaves()
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to create leave')
-    }
-  }
 
   const handleApprove = async (id: string) => {
     try {
@@ -123,6 +92,7 @@ export function Leaves() {
   }
 
   const columns = [
+    columnHelper.accessor('employeeName', { header: 'Employee', cell: (info) => info.getValue() }),
     columnHelper.accessor('leaveType', {
       header: 'Type',
       cell: (info) => <span className="capitalize">{info.getValue()}</span>,
@@ -151,6 +121,11 @@ export function Leaves() {
         const row = info.row.original
         const items: ActionMenuItem[] = []
 
+        if (row.leaveStatus === 'pending' && canApprove) {
+          items.push({ label: 'Approve', onClick: () => handleApprove(row.id) })
+          items.push({ label: 'Reject', onClick: () => handleReject(row.id) })
+        }
+
         if (row.leaveStatus === 'pending' && hasPermission('leave:delete')) {
           items.push({ label: 'Delete', onClick: () => handleDelete(row.id), variant: 'danger' })
         }
@@ -163,13 +138,7 @@ export function Leaves() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Leave Management" subtitle="View and request your leaves.">
-        {hasPermission('leave:create') && (
-          <Button onClick={() => setAddOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Request Leave
-          </Button>
-        )}
-      </PageHeader>
+      <PageHeader title="Leave Approvals" subtitle="Manage all employee leave requests." />
 
       <DataTable
         data={data}
@@ -178,27 +147,6 @@ export function Leaves() {
         searchPlaceholder="Search leaves..."
         emptyMessage="No leave requests found."
       />
-
-      {/* Create Leave Dialog */}
-      <DialogForm open={addOpen} onClose={() => { setAddOpen(false); createForm.reset() }} title="Request Leave" subtitle="Submit a new leave request">
-        <form onSubmit={createForm.handleSubmit(onCreateLeave)}>
-          <div className="space-y-4">
-            <FormField label="Leave Type" required error={createForm.formState.errors.leaveType?.message}>
-              <FormSelect {...createForm.register('leaveType')} error={!!createForm.formState.errors.leaveType} options={leaveTypeOptions} placeholder="Select type" />
-            </FormField>
-            <FormField label="Start Date" required error={createForm.formState.errors.startDate?.message}>
-              <FormInput {...createForm.register('startDate')} error={!!createForm.formState.errors.startDate} type="date" />
-            </FormField>
-            <FormField label="End Date" required error={createForm.formState.errors.endDate?.message}>
-              <FormInput {...createForm.register('endDate')} error={!!createForm.formState.errors.endDate} type="date" />
-            </FormField>
-            <FormField label="Reason" required error={createForm.formState.errors.reason?.message}>
-              <FormInput {...createForm.register('reason')} error={!!createForm.formState.errors.reason} placeholder="Why do you need leave?" />
-            </FormField>
-          </div>
-          <FormActions onCancel={() => { setAddOpen(false); createForm.reset() }} submitLabel="Submit" isSubmitting={createForm.formState.isSubmitting} />
-        </form>
-      </DialogForm>
     </div>
   )
 }

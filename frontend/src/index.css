@@ -44,7 +44,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 242 47% 34%; /* Professional Indigo */
+    --primary: 242 47% 34%;
+    /* Professional Indigo */
     --primary-foreground: 210 40% 98%;
 
     --secondary: 210 40% 96.1%;
@@ -76,7 +77,8 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 242 47% 44%; /* Slightly lighter Indigo for dark mode */
+    --primary: 242 47% 44%;
+    /* Slightly lighter Indigo for dark mode */
     --primary-foreground: 210 40% 98%;
 
     --secondary: 217.2 32.6% 17.5%;
@@ -101,6 +103,7 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;

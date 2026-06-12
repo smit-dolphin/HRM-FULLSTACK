@@ -8,8 +8,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { DataTable } from '@/components/ui/DataTable'
-import { ActionMenu } from '@/components/ui/ActionMenu'
+import { ActionMenu, type ActionMenuItem } from '@/components/ui/ActionMenu'
 import { DialogForm, FormField, FormInput, FormActions } from '@/components/forms/DialogForm'
+import { useAuthStore } from '@/store/useAuthStore'
 import {
   fetchDesignationsService,
   createDesignationService,
@@ -29,6 +30,7 @@ const columnHelper = createColumnHelper<DesignationRow>()
 export function DepartmentDetail() {
   const { id: departmentId } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { hasPermission } = useAuthStore()
 
   const [deptName, setDeptName] = React.useState('')
   const [data, setData] = React.useState<DesignationRow[]>([])
@@ -137,12 +139,11 @@ export function DepartmentDetail() {
       header: 'Actions',
       cell: (info) => {
         const row = info.row.original
-        return (
-          <ActionMenu items={[
-            { label: 'Edit', onClick: () => handleOpenEdit(row) },
-            { label: 'Delete', onClick: () => handleDelete(row.id), variant: 'danger' },
-          ]} />
-        )
+        const items: ActionMenuItem[] = []
+        if (hasPermission('designation:edit')) items.push({ label: 'Edit', onClick: () => handleOpenEdit(row) })
+        if (hasPermission('designation:delete')) items.push({ label: 'Delete', onClick: () => handleDelete(row.id), variant: 'danger' })
+        if (!items.length) return null
+        return <ActionMenu items={items} />
       },
     }),
   ]
@@ -156,9 +157,11 @@ export function DepartmentDetail() {
           </Button>
           <PageHeader title={deptName || 'Department'} subtitle="Manage designations in this department." />
         </div>
-        <Button onClick={() => setAddOpen(true)} className="shrink-0">
-          <Plus className="mr-2 h-4 w-4" /> Add Designation
-        </Button>
+        {hasPermission('designation:create') && (
+          <Button onClick={() => setAddOpen(true)} className="shrink-0">
+            <Plus className="mr-2 h-4 w-4" /> Add Designation
+          </Button>
+        )}
       </div>
 
       <DataTable

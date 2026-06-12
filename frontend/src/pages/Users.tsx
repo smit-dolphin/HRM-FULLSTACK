@@ -8,9 +8,10 @@ import { toast } from 'sonner'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { DataTable } from '@/components/ui/DataTable'
-import { ActionMenu } from '@/components/ui/ActionMenu'
+import { ActionMenu, type ActionMenuItem } from '@/components/ui/ActionMenu'
 import { exportToExcel } from '@/utils/exportToExcel'
 import { DialogForm, FormField, FormInput, FormSelect, FormActions } from '@/components/forms/DialogForm'
+import { useAuthStore } from '@/store/useAuthStore'
 import {
   fetchUsersService,
   createUserService,
@@ -42,6 +43,7 @@ const roleOptions = [
 ]
 
 export function Users() {
+  const { hasPermission } = useAuthStore()
   const [data, setData] = React.useState<UserRow[]>([])
   const [loading, setLoading] = React.useState(true)
   const [addOpen, setAddOpen] = React.useState(false)
@@ -160,13 +162,12 @@ export function Users() {
       header: 'Actions',
       cell: (info) => {
         const row = info.row.original
-        return (
-          <ActionMenu items={[
-            { label: 'Edit', onClick: () => handleOpenEdit(row) },
-            { label: 'Deactivate', onClick: () => handleDeactivate(row.id) },
-            { label: 'Delete', onClick: () => handleDelete(row.id), variant: 'danger' },
-          ]} />
-        )
+        const items: ActionMenuItem[] = []
+        if (hasPermission('user:edit')) items.push({ label: 'Edit', onClick: () => handleOpenEdit(row) })
+        if (hasPermission('user:delete')) items.push({ label: 'Deactivate', onClick: () => handleDeactivate(row.id) })
+        if (hasPermission('user:delete')) items.push({ label: 'Delete', onClick: () => handleDelete(row.id), variant: 'danger' })
+        if (!items.length) return null
+        return <ActionMenu items={items} />
       },
     }),
   ]
@@ -177,9 +178,11 @@ export function Users() {
         <Button variant="outline" onClick={() => exportToExcel({ data, sheetName: 'Users' })} disabled={!data.length}>
           <Download className="mr-2 h-4 w-4" /> Export
         </Button>
-        <Button onClick={() => setAddOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Add User
-        </Button>
+        {hasPermission('user:create') && (
+          <Button onClick={() => setAddOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Add User
+          </Button>
+        )}
       </PageHeader>
 
       <DataTable

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { useAuthStore } from '@/store/useAuthStore';
 
 const leaveRequests = [
   {
@@ -35,6 +36,8 @@ const leaveRequests = [
 ];
 
 export function Leaves() {
+  const { hasPermission } = useAuthStore();
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -110,7 +113,7 @@ export function Leaves() {
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
-                    {request.status === 'Pending' && (
+                    {request.status === 'Pending' && hasPermission('leave:approve') && (
                       <div className="flex justify-end gap-2">
                         <Button variant="outline" size="sm" className="text-green-600 hover:text-green-700 hover:bg-green-50">Approve</Button>
                         <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">Reject</Button>

@@ -8,9 +8,10 @@ import { toast } from 'sonner'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { DataTable } from '@/components/ui/DataTable'
-import { ActionMenu } from '@/components/ui/ActionMenu'
+import { ActionMenu, type ActionMenuItem } from '@/components/ui/ActionMenu'
 import { exportToExcel } from '@/utils/exportToExcel'
 import { DialogForm, FormField, FormSelect, FormActions } from '@/components/forms/DialogForm'
+import { useAuthStore } from '@/store/useAuthStore'
 import {
   fetchEmployeesService,
   createEmployeeService,
@@ -39,6 +40,7 @@ type EmployeeRow = {
 const columnHelper = createColumnHelper<EmployeeRow>()
 
 export function Employees() {
+  const { hasPermission } = useAuthStore()
   const [data, setData] = React.useState<EmployeeRow[]>([])
   const [loading, setLoading] = React.useState(true)
   const [addOpen, setAddOpen] = React.useState(false)
@@ -209,13 +211,12 @@ export function Employees() {
       header: 'Actions',
       cell: (info) => {
         const row = info.row.original
-        return (
-          <ActionMenu items={[
-            { label: 'Edit', onClick: () => handleOpenEdit(row) },
-            { label: row.isBlocked ? 'Unblock' : 'Block', onClick: () => handleToggleBlock(row) },
-            { label: 'Delete', onClick: () => handleDelete(row.id), variant: 'danger' },
-          ]} />
-        )
+        const items: ActionMenuItem[] = []
+        if (hasPermission('employee:edit')) items.push({ label: 'Edit', onClick: () => handleOpenEdit(row) })
+        if (hasPermission('employee:block')) items.push({ label: row.isBlocked ? 'Unblock' : 'Block', onClick: () => handleToggleBlock(row) })
+        if (hasPermission('employee:delete')) items.push({ label: 'Delete', onClick: () => handleDelete(row.id), variant: 'danger' })
+        if (!items.length) return null
+        return <ActionMenu items={items} />
       },
     }),
   ]
@@ -226,9 +227,11 @@ export function Employees() {
         <Button variant="outline" onClick={() => exportToExcel({ data, sheetName: 'Employees' })} disabled={!data.length}>
           <Download className="mr-2 h-4 w-4" /> Export
         </Button>
-        <Button onClick={handleOpenAdd}>
-          <Plus className="mr-2 h-4 w-4" /> Add Employee
-        </Button>
+        {hasPermission('employee:create') && (
+          <Button onClick={handleOpenAdd}>
+            <Plus className="mr-2 h-4 w-4" /> Add Employee
+          </Button>
+        )}
       </PageHeader>
 
       <DataTable

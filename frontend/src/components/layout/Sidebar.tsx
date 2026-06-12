@@ -18,15 +18,12 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { cn } from '@/utils/cn';
 import { Button } from '@/components/ui/button';
 
-type Role = 'superadmin' | 'admin' | 'manager' | 'teamleader' | 'employee'
-
-const navItems: { icon: any; label: string; path: string; roles?: Role[] }[] = [
+const navItems: { icon: any; label: string; path: string; permission?: string }[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-  { icon: UserRound, label: 'Users', path: '/users', roles: ['superadmin'] },
-  { icon: Users, label: 'Employees', path: '/employees', roles: ['superadmin', 'admin', 'manager'] },
-  { icon: Building2, label: 'Departments', path: '/departments', roles: ['superadmin'] },
-  // { icon: CalendarDays, label: 'Leave Requests', path: '/leaves' },
-  // { icon: Settings, label: 'Settings', path: '/settings' },
+  { icon: UserRound, label: 'Users', path: '/users', permission: 'user:view' },
+  { icon: Users, label: 'Employees', path: '/employees', permission: 'employee:view' },
+  { icon: Building2, label: 'Departments', path: '/departments', permission: 'department:view' },
+  { icon: CalendarDays, label: 'Leaves', path: '/leaves', permission: 'leave:view' },
 ];
 
 type SidebarProps = {
@@ -37,7 +34,7 @@ type SidebarProps = {
 };
 
 export function Sidebar({ collapsed = false, mobileOpen = false, onCloseMobile, onCollapse }: SidebarProps) {
-  const { user, logout } = useAuthStore();
+  const { user, logout, hasPermission } = useAuthStore();
   const { theme, setTheme } = useTheme();
   void onCollapse;
 
@@ -79,7 +76,7 @@ export function Sidebar({ collapsed = false, mobileOpen = false, onCloseMobile, 
 
         <nav className={cn("flex-1 space-y-1 overflow-y-auto p-3", compact && "px-2")}>
           {navItems
-            .filter(item => !item.roles || item.roles.includes(user?.role as Role))
+            .filter(item => !item.permission || hasPermission(item.permission))
             .map((item) => (
             <NavLink
               key={item.path}

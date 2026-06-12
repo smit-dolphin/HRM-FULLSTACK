@@ -9,7 +9,9 @@ export const rolePermissions = {
   ],
   admin: [
     'employee:view', 'employee:create', 'employee:edit', 'employee:delete', 'employee:block',
+    'user:view',
     'leave:view', 'leave:create', 'leave:approve', 'leave:delete',
+    'department:view','designation:view'
   ],
   manager: [
     'employee:view',

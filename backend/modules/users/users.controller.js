@@ -50,8 +50,12 @@ export async function fetchAllUsers(req, res) {
         // OFFSET ${currentPage > 0 ? (currentPage - 1) * limit : 0};`
 
         const currentScope=currentPage > 0 ? (currentPage - 1) * limit : 0
-
+        const where={}
+        if (req.user.role !=="superadmin"){
+            where.role= {notIn:["superadmin","admin"]}
+        }
         const allUsers=await prisma.user.findMany({
+            where:where,
             take: limit,
             skip:currentScope,
             orderBy:{createdAt:"desc"},

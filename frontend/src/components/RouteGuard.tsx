@@ -1,17 +1,15 @@
 import { Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/useAuthStore'
 
-type Role = 'superadmin' | 'admin' | 'manager' | 'teamleader' | 'employee'
-
 interface RouteGuardProps {
-  roles: Role[]
+  permission: string
   children: React.ReactNode
 }
 
-export function RouteGuard({ roles, children }: RouteGuardProps) {
-  const user = useAuthStore((s) => s.user)
+export function RouteGuard({ permission, children }: RouteGuardProps) {
+  const { hasPermission } = useAuthStore()
 
-  if (!user || !roles.includes(user.role as Role)) {
+  if (!hasPermission(permission)) {
     return <Navigate to="/" replace />
   }
 

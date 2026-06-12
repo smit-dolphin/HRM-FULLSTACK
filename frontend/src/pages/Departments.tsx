@@ -8,8 +8,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { DataTable } from '@/components/ui/DataTable'
-import { ActionMenu } from '@/components/ui/ActionMenu'
+import { ActionMenu, type ActionMenuItem } from '@/components/ui/ActionMenu'
 import { DialogForm, FormField, FormInput, FormActions } from '@/components/forms/DialogForm'
+import { useAuthStore } from '@/store/useAuthStore'
 import {
   fetchDepartmentsService,
   createDepartmentService,
@@ -29,6 +30,7 @@ const columnHelper = createColumnHelper<DepartmentRow>()
 
 export function Departments() {
   const navigate = useNavigate()
+  const { hasPermission } = useAuthStore()
   const [data, setData] = React.useState<DepartmentRow[]>([])
   const [loading, setLoading] = React.useState(true)
   const [addOpen, setAddOpen] = React.useState(false)
@@ -129,13 +131,12 @@ export function Departments() {
       header: 'Actions',
       cell: (info) => {
         const row = info.row.original
-        return (
-          <ActionMenu items={[
-            { label: 'View Designations', onClick: () => navigate(`/departments/${row.id}`) },
-            { label: 'Edit', onClick: () => handleOpenEdit(row) },
-            { label: 'Delete', onClick: () => handleDelete(row.id), variant: 'danger' },
-          ]} />
-        )
+        const items: ActionMenuItem[] = [
+          { label: 'View Designations', onClick: () => navigate(`/departments/${row.id}`) },
+        ]
+        if (hasPermission('department:edit')) items.push({ label: 'Edit', onClick: () => handleOpenEdit(row) })
+        if (hasPermission('department:delete')) items.push({ label: 'Delete', onClick: () => handleDelete(row.id), variant: 'danger' })
+        return <ActionMenu items={items} />
       },
     }),
   ]
@@ -143,9 +144,11 @@ export function Departments() {
   return (
     <div className="space-y-6">
       <PageHeader title="Departments" subtitle="Manage organizational departments.">
-        <Button onClick={() => setAddOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Add Department
-        </Button>
+        {hasPermission('department:create') && (
+          <Button onClick={() => setAddOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Add Department
+          </Button>
+        )}
       </PageHeader>
 
       <DataTable

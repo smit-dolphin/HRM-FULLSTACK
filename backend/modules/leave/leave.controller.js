@@ -31,23 +31,53 @@ export async function getAllLeaves(req, res) {
     }
 }
 
-export async function getLeavesById(req,res){
+export async function getMyLeaves(req, res) {
     try {
-        
+
+        const id = req.user.id
+
+        const getemployee = await prisma.employee.findUnique({
+            where: {
+                userId: id
+            }
+        })
+
+        if (!getemployee) {
+            return errorResponse(res, 400, "falied to fetch leaves", "invalid employee id")
+        }
+
+
+        const getleave = await prisma.leave.findMany({
+            where: {
+                employeeId: getemployee.id
+            }
+        })
+
+        return successResponse(res, 200, "leave  fetched successfully", getleave)
+
+
+    } catch (error) {
+        return errorResponse(res, 500, "something went wrong", error.message)
+    }
+}
+
+export async function getLeavesById(req, res) {
+    try {
+
         const { id } = req.params
 
         const getleave = await prisma.leave.findUnique({
             where: {
                 id,
             },
-            include:{
-                employee:{
-                    include:{
-                        user:{
-                            select:{
-                                id:true,
-                                name:true,
-                                email:true
+            include: {
+                employee: {
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                name: true,
+                                email: true
                             }
                         }
                     }
@@ -61,7 +91,7 @@ export async function getLeavesById(req,res){
         return successResponse(res, 200, "leave status fetched successfully", getleave)
 
 
-      } catch (error) {
+    } catch (error) {
         return errorResponse(res, 500, "something went wrong", error.message)
     }
 }
@@ -124,12 +154,25 @@ export async function createLeave(req, res) {
     }
 }
 
-
 export async function updateStatusLeave(req, res) {
     try {
         const { status } = req.query
         const { id } = req.params
+        const userId = req.user.id
 
+        const actionEmployee = await prisma.employee.findUnique({
+            where: {
+                userId
+            }
+        })
+
+        if (!actionEmployee) {
+            return errorResponse(res, 400, "invalid employee", "invalid employee id")
+        }
+
+        if (status !== "approved" && status !== "rejected") {
+            return errorResponse(res, 400, "invalid status", "enter valid status")
+        }
         const getleave = await prisma.leave.findUnique({
             where: {
                 id,
@@ -137,7 +180,12 @@ export async function updateStatusLeave(req, res) {
         })
 
         if (!getleave) {
-            return errorResponse(res, 500, "leave does not exist", "invalid leave id")
+            return errorResponse(res, 400, "leave does not exist", "invalid leave id")
+        }
+
+        if (getleave.leaveStatus === "approved" || getleave.leaveStatus === "rejected") {
+            return errorResponse(res, 400, "failed to update status", "only can update pending status")
+
         }
 
         const updateleave = await prisma.leave.update({
@@ -145,7 +193,9 @@ export async function updateStatusLeave(req, res) {
                 id: getleave.id
             },
             data: {
-                leaveStatus:status
+                leaveStatus: status,
+                actionTakenById:
+                    actionEmployee.id
             }
 
         })
@@ -156,4 +206,56 @@ export async function updateStatusLeave(req, res) {
         return errorResponse(res, 500, "something went wrong", error.message)
     }
 }
+
+export async function deleteLeave(req, res) {
+
+    try {
+
+        const { id } = req.params
+
+        const userId = req.user.id
+
+        const actionEmployee = await prisma.employee.findUnique({
+            where: {
+                userId
+            }
+        })
+
+        if (!actionEmployee) {
+            return errorResponse(res, 400, "invalid employee", "invalid employee id")
+        }
+
+        const getleave = await prisma.leave.findUnique({
+            where: {
+                id,
+            }
+        })
+
+        if (!getleave) {
+            return errorResponse(res, 400, "leave does not exist", "invalid leave id")
+        }
+
+        if (actionEmployee.id !== getleave.employeeId) {
+            return errorResponse(res, 400, "unauthorized to delete this leave", "failed to delete leave")
+        }
+        if (getleave.leaveStatus !== "pending") {
+            return errorResponse(res, 400, "failed to delete leave", "only can delete pending leaves")
+        }
+
+        const deleteleave = await prisma.leave.delete({
+            where: {
+                id: getleave.id
+            }
+        })
+        return successResponse(res, 200, "leave status deleted successfully", deleteleave)
+
+
+    } catch (error) {
+        return errorResponse(res, 500, "something went wrong", error.message)
+    }
+
+}
+
+
+
 

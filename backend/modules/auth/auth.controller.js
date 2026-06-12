@@ -4,6 +4,7 @@ import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken"
 import { signinSchema, signupSchema } from "./authValidation.schema.js"
 import prisma from "../../config/prisma.config.js"
+import { rolePermissions } from "../../const/rolesPermissions.js"
 
 
 export async function signup(req, res) {
@@ -90,12 +91,14 @@ export async function signin(req, res) {
             updatedAt: existingUser.updatedAt,
 
         }
+
+        const permissions=rolePermissions[newuserdata.role]
         return res.status(200).cookie('accessToken', accessToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "strict",
             maxAge: 12* 60 * 60 * 1000
-        }).json({ success: true, message: "user loggedin successfully", data: newuserdata })
+        }).json({ success: true, message: "user loggedin successfully", data: {...newuserdata,permissions} })
 
 
 

@@ -4,8 +4,9 @@ interface User {
     id: string
     name: string
     email: string
-    role: 'employee' | 'admin' | 'superadmin'
+    role: 'employee' | 'admin' | 'manager' | 'teamleader' | 'superadmin'
     isActive: boolean
+    permissions: string[]
     createdAt: string
     updatedAt: string
 }

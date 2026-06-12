@@ -10,8 +10,8 @@ const router =Router()
 // employee want his leave
 // admin want leave by id , employee want leave by id
 //can approve or reject leave
-router.get('/',authenticatUser,autherize("superadmin","admin","manager"),getAllLeaves)
 router.get('/my-leaves',authenticatUser,autherize("admin","manager","employee","teamleader"),getMyLeaves)
+router.get('/',authenticatUser,autherize("superadmin","admin","manager"),getAllLeaves)
 router.get('/:id',authenticatUser,autherize("superadmin","admin","manager"),getLeavesById)
 router.post('/',authenticatUser,autherize("admin","manager","employee","teamleader"),createLeave)
 router.patch('/:id',authenticatUser,autherize("admin","manager"),updateStatusLeave)

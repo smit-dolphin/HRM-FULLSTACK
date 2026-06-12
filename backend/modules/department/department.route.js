@@ -5,10 +5,10 @@ import autherize from "../../middlewares/autherize.middleare.js"
 
 const router = Router()
 
-router.get("/", authenticatUser,autherize('superadmin'), fetchAllDepartments)
-router.get("/:id", authenticatUser,autherize('superadmin'), fetchDepartmentById)
-router.post("/", authenticatUser,autherize('superadmin'), createDepartment)
-router.patch("/:id", authenticatUser,autherize('superadmin'), updateDepartment)
-router.delete("/:id", authenticatUser,autherize('superadmin'), deleteDepartment)
+router.get("/", authenticatUser, autherize('department:view'), fetchAllDepartments)
+router.get("/:id", authenticatUser, autherize('department:view'), fetchDepartmentById)
+router.post("/", authenticatUser, autherize('department:create'), createDepartment)
+router.patch("/:id", authenticatUser, autherize('department:edit'), updateDepartment)
+router.delete("/:id", authenticatUser, autherize('department:delete'), deleteDepartment)
 
 export const departmentRouter = router

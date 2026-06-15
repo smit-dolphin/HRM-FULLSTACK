@@ -18,6 +18,7 @@ const Leaves = lazy(() => import('@/pages/Leaves').then(m => ({ default: m.Leave
 const ManageLeaves = lazy(() => import('@/pages/ManageLeaves').then(m => ({ default: m.ManageLeaves })))
 const Departments = lazy(() => import('@/pages/Departments').then(m => ({ default: m.Departments })))
 const DepartmentDetail = lazy(() => import('@/pages/DepartmentDetail').then(m => ({ default: m.DepartmentDetail })))
+const Settings = lazy(() => import('@/pages/Settings').then(m => ({ default: m.Settings })))
 
 function App() {
   return (
@@ -37,7 +38,7 @@ function App() {
                   <Route path="departments" element={<RouteGuard permission="department:view"><Departments /></RouteGuard>} />
                   <Route path="departments/:id" element={<RouteGuard permission="department:view"><DepartmentDetail /></RouteGuard>} />
                   <Route path="leaves" element={<RouteGuard permission="leave:view"><LeaveDashboard /></RouteGuard>} />
-                  <Route path="settings" element={<div className="p-8">Settings (Coming Soon)</div>} />
+                  <Route path="settings" element={<RouteGuard permission="leave:type:manage"><Settings /></RouteGuard>} />
                 </Route>
               </Route>
 

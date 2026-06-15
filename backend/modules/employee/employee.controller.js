@@ -76,7 +76,7 @@ export async function createEmployee(req, res) {
         if (!result.success) {
             return errorResponse(res, 400, "invalid input", result.error.issues[0].message)
         }
-        const { userId, departmentId, designationId } = result.data
+        const { userId, departmentId, designationId, reportsToId } = result.data
 
         const ifEmployeeExist = await prisma.employee.findUnique({ where: { userId } })
         if (ifEmployeeExist) {
@@ -107,7 +107,8 @@ export async function createEmployee(req, res) {
                 data: {
                     userId,
                     departmentId,
-                    designationId
+                    designationId,
+                    reportsToId
                 }
             })
 
@@ -185,7 +186,7 @@ export async function updateEmployee(req, res) {
         if (!result.success) {
             return errorResponse(res, 400, "invalid input", result.error.issues[0].message)
         }
-        const { departmentId, designationId, isBlocked } = result.data
+        const { departmentId, designationId, isBlocked, reportsToId } = result.data
 
         const existingEmployee = await prisma.employee.findUnique({ where: { id } })
         if (!existingEmployee) {
@@ -215,7 +216,8 @@ export async function updateEmployee(req, res) {
             where: { id }, data: {
                 departmentId,
                 designationId,
-                isBlocked
+                isBlocked,
+                reportsToId
             }
         })
         return successResponse(res, 200, "employee updated successfully", updatedEmployee)

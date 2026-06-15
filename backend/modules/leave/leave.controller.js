@@ -181,7 +181,7 @@ export async function updateStatusLeave(req, res) {
         if (!leave) return errorResponse(res, 404, "Leave does not exist", "Invalid leave id");
 
         // Check hierarchy! Can only approve if actionEmployee is the reportsToId or superadmin
-        if (req.user.role !== 'superadmin' && leave.employee.reportsToId !== actionEmployee.id) {
+        if (req.user.role !== 'superadmin'  && leave.employee.reportsToId !== actionEmployee.id) {
             return errorResponse(res, 403, "Forbidden", "You are not authorized to approve this leave");
         }
 

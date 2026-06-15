@@ -10,7 +10,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { DataTable } from '@/components/ui/DataTable'
 import { ActionMenu, type ActionMenuItem } from '@/components/ui/ActionMenu'
 import { exportToExcel } from '@/utils/exportToExcel'
-import { DialogForm, FormField, FormSelect, FormActions } from '@/components/forms/DialogForm'
+import { DialogForm, FormField, FormSelect, FormActions, FormInput } from '@/components/forms/DialogForm'
 import { useAuthStore } from '@/store/useAuthStore'
 import {
   fetchEmployeesService,
@@ -22,6 +22,8 @@ import {
 } from '@/services/employeeService/employeeService'
 import { fetchUsersService, type User } from '@/services/userService/userService'
 import { fetchDepartmentsService, type Department } from '@/services/departmentService/departmentService'
+import { fetchBalanceByEmployeeService, type LeaveBalance } from '@/services/leaveService/leaveService'
+import baseApi from '@/api/baseApi'
 import { createEmployeeSchema, updateEmployeeSchema, type CreateEmployeeFormData, type UpdateEmployeeFormData } from '@/schemas/employee.schema'
 
 type EmployeeRow = {
@@ -49,6 +51,12 @@ export function Employees() {
   const [addOpen, setAddOpen] = React.useState(false)
   const [editOpen, setEditOpen] = React.useState(false)
   const [editingEmployee, setEditingEmployee] = React.useState<EmployeeRow | null>(null)
+
+  // Balance dialog
+  const [balanceOpen, setBalanceOpen] = React.useState(false)
+  const [balanceEmployee, setBalanceEmployee] = React.useState<EmployeeRow | null>(null)
+  const [empBalance, setEmpBalance] = React.useState<LeaveBalance[]>([])
+  const [editingBalance, setEditingBalance] = React.useState<{ leaveTypeId: string; allocated: number } | null>(null)
 
   // Dropdown options
   const [users, setUsers] = React.useState<{ value: string; label: string }[]>([])
@@ -131,10 +139,30 @@ export function Employees() {
   const handleOpenEdit = (row: EmployeeRow) => {
     loadFormOptions()
     setEditingEmployee(row)
-    setEditingEmployee(row)
     editForm.reset({ departmentId: row.departmentId, designationId: row.designationId, reportsToId: row.reportsToId })
     setEditOpen(true)
-    setEditOpen(true)
+  }
+
+  const handleOpenBalance = async (row: EmployeeRow) => {
+    setBalanceEmployee(row)
+    try {
+      const res = await fetchBalanceByEmployeeService(row.id)
+      if (res.success) setEmpBalance(res.data)
+    } catch { toast.error('Failed to load balance') }
+    setBalanceOpen(true)
+  }
+
+  const handleSaveBalance = async () => {
+    if (!balanceEmployee || !editingBalance) return
+    try {
+      const res = await baseApi.patch(`/leave/balance/${balanceEmployee.id}`, editingBalance)
+      if (res.data.success) {
+        toast.success('Balance updated')
+        const refreshed = await fetchBalanceByEmployeeService(balanceEmployee.id)
+        if (refreshed.success) setEmpBalance(refreshed.data)
+        setEditingBalance(null)
+      }
+    } catch (error: any) { toast.error(error.response?.data?.message || 'Failed to update balance') }
   }
 
   const onCreateEmployee = async (formData: CreateEmployeeFormData) => {
@@ -229,6 +257,7 @@ export function Employees() {
         const row = info.row.original
         const items: ActionMenuItem[] = []
         if (hasPermission('employee:edit')) items.push({ label: 'Edit', onClick: () => handleOpenEdit(row) })
+        if (hasPermission('leave:balance:view')) items.push({ label: 'Manage Balance', onClick: () => handleOpenBalance(row) })
         if (hasPermission('employee:block')) items.push({ label: row.isBlocked ? 'Unblock' : 'Block', onClick: () => handleToggleBlock(row) })
         if (hasPermission('employee:delete')) items.push({ label: 'Delete', onClick: () => handleDelete(row.id), variant: 'danger' })
         if (!items.length) return null
@@ -295,6 +324,36 @@ export function Employees() {
           </div>
           <FormActions onCancel={() => { setEditOpen(false); editForm.reset(); setEditingEmployee(null) }} submitLabel="Update" isSubmitting={editForm.formState.isSubmitting} />
         </form>
+      </DialogForm>
+
+      {/* Manage Balance Dialog */}
+      <DialogForm open={balanceOpen} onClose={() => { setBalanceOpen(false); setBalanceEmployee(null); setEmpBalance([]); setEditingBalance(null) }} title="Manage Leave Balance" subtitle={balanceEmployee?.name ?? ''}>
+        <div className="space-y-3">
+          {empBalance.length === 0 && <p className="text-sm text-muted-foreground">No balance records found.</p>}
+          {empBalance.map(b => (
+            <div key={b.id} className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <p className="text-sm font-medium">{b.leaveType?.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {b.allocated - b.used - b.pending} remaining · {b.used} used · {b.pending} pending
+                </p>
+              </div>
+              {hasPermission('leave:balance:edit') && (
+                <div className="flex items-center gap-2">
+                  <FormInput
+                    type="number"
+                    className="w-20 h-8"
+                    defaultValue={b.allocated}
+                    onChange={(e) => setEditingBalance({ leaveTypeId: b.leaveTypeId, allocated: Number(e.target.value) })}
+                  />
+                  {editingBalance?.leaveTypeId === b.leaveTypeId && (
+                    <Button size="sm" onClick={handleSaveBalance}>Save</Button>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </DialogForm>
     </div>
   )

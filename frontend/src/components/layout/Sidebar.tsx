@@ -24,6 +24,7 @@ const navItems: { icon: any; label: string; path: string; permission?: string }[
   { icon: Users, label: 'Employees', path: '/employees', permission: 'employee:view' },
   { icon: Building2, label: 'Departments', path: '/departments', permission: 'department:view' },
   { icon: CalendarDays, label: 'Leaves', path: '/leaves', permission: 'leave:view' },
+  { icon: Settings, label: 'Settings', path: '/settings', permission: 'leave:type:manage' },
 ];
 
 type SidebarProps = {

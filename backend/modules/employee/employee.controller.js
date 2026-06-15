@@ -102,12 +102,31 @@ export async function createEmployee(req, res) {
             return errorResponse(res, 400, "designation not valid with this id", "failed to create employee")
         }
 
-        const newEmplyee = await prisma.employee.create({
-            data: {
-                userId,
-                departmentId,
-                designationId
+        const newEmplyee = await prisma.$transaction(async (tx) => {
+            const emp = await tx.employee.create({
+                data: {
+                    userId,
+                    departmentId,
+                    designationId
+                }
+            })
+
+            // Auto-allocate leave balances for current year
+            const leaveTypes = await tx.leaveType.findMany()
+            if (leaveTypes.length > 0) {
+                await tx.leaveBalance.createMany({
+                    data: leaveTypes.map(lt => ({
+                        employeeId: emp.id,
+                        leaveTypeId: lt.id,
+                        year: new Date().getFullYear(),
+                        allocated: lt.defaultDays,
+                        used: 0,
+                        pending: 0,
+                    }))
+                })
             }
+
+            return emp
         })
 
         if (!newEmplyee) {

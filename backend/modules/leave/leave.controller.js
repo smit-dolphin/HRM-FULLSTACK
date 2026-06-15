@@ -19,10 +19,10 @@ function calculateWorkingDays(startDate, endDate) {
 export async function getAllLeaves(req, res) {
     try {
         const employee = await prisma.employee.findUnique({ where: { userId: req.user.id } });
-        if (!employee) return errorResponse(res, 400, "Invalid employee", "Employee not found");
+        if (!employee && req.user.role !== 'superadmin' && req.user.role !== 'admin') return errorResponse(res, 400, "Invalid employee", "Employee not found");
 
         let filter = {};
-        
+
         // If not superadmin/admin, restrict to subordinates
         if (req.user.role !== 'superadmin' && req.user.role !== 'admin') {
             filter.employee = { reportsToId: employee.id };
@@ -41,7 +41,7 @@ export async function getAllLeaves(req, res) {
             },
             orderBy: { createdAt: 'desc' }
         });
-        
+
         return successResponse(res, 200, "Leaves fetched successfully", leaves);
     } catch (error) {
         return errorResponse(res, 500, "Something went wrong", error.message);
@@ -90,9 +90,12 @@ export async function createLeave(req, res) {
     try {
         const result = createLeaveValidate.safeParse(req.body);
         if (!result.success) return errorResponse(res, 400, "Invalid input", result.error.issues[0].message);
-        
+
         const { startDate, endDate, reason, leaveTypeId } = result.data;
-        
+        if (new Date(startDate) < new Date(new Date().toDateString())) {
+            return errorResponse(res, 400, "Cannot create leave for past dates")
+        }
+
         const employee = await prisma.employee.findUnique({ where: { userId: req.user.id } });
         if (!employee) return errorResponse(res, 400, "Employee doesn't exist", "Failed to create leave");
 

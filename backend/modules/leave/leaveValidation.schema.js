@@ -21,3 +21,51 @@ export const createLeaveValidate = z
       });
     }
   });
+
+
+export const createLeaveTypeValidation = z.object({
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .max(100, "Name is too long"),
+
+  description: z
+    .string()
+    .max(500, "Description is too long")
+    .optional(),
+
+  defaultDays: z
+    .number({
+      required_error: "Default days is required",
+      invalid_type_error: "Default days must be a number",
+    })
+    .min(0, "Default days cannot be negative"),
+
+  isPaid: z.boolean().default(true),
+
+  requiresApproval: z.boolean().default(true),
+})
+
+export const updateLeaveTypeValidation = z.object({
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .max(100, "Name is too long")
+    .optional(),
+
+  description: z
+    .string()
+    .max(500, "Description is too long")
+    .optional(),
+
+  defaultDays: z
+    .number({
+      invalid_type_error: "Default days must be a number",
+    })
+    .min(0, "Default days cannot be negative")
+    .optional(),
+
+  isPaid: z.boolean().optional(),
+
+  requiresApproval: z.boolean().optional(),
+});

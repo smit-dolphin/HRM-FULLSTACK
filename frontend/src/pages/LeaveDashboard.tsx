@@ -1,9 +1,5 @@
 import React from 'react'
 import { createColumnHelper } from '@tanstack/react-table'
-import { Button } from '@/components/ui/button'
-import { Plus } from 'lucide-react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
@@ -11,6 +7,8 @@ import { DataTable } from '@/components/ui/DataTable'
 import { ActionMenu, type ActionMenuItem } from '@/components/ui/ActionMenu'
 import { DialogForm, FormField, FormInput, FormSelect, FormActions } from '@/components/forms/DialogForm'
 import { useAuthStore } from '@/store/useAuthStore'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import {
   fetchAllLeavesService,
   fetchMyLeavesService,
@@ -20,6 +18,10 @@ import {
   type Leave,
 } from '@/services/leaveService/leaveService'
 import { createLeaveSchema, type CreateLeaveFormData } from '@/schemas/leave.schema'
+
+// -----------------------------------------------------------------------------
+// UI - Leave Dashboard (HRM style)
+// -----------------------------------------------------------------------------
 
 type LeaveRow = {
   id: string
@@ -33,36 +35,33 @@ type LeaveRow = {
 
 const columnHelper = createColumnHelper<LeaveRow>()
 
-const leaveTypeOptions = [
-  { value: 'sick', label: 'Sick Leave' },
-  { value: 'paid', label: 'Paid Leave' },
-  { value: 'unpaid', label: 'Unpaid Leave' },
-]
+export function LeaveDashboard() {
+  const { hasPermission, user } = useAuthStore()
+  const canApprove = hasPermission('leave:approve')
+  const canCreate = hasPermission('leave:create')
+  const canDelete = hasPermission('leave:delete')
 
-export function Leaves() {
-  const { hasPermission } = useAuthStore()
   const [data, setData] = React.useState<LeaveRow[]>([])
   const [loading, setLoading] = React.useState(true)
+  const [viewAll, setViewAll] = React.useState(false) // manager/admin view toggle
   const [addOpen, setAddOpen] = React.useState(false)
-
   const createForm = useForm<CreateLeaveFormData>({ resolver: zodResolver(createLeaveSchema) })
-
-  const canApprove = hasPermission('leave:approve')
-
   const loadLeaves = async () => {
     try {
       setLoading(true)
-      const response = await fetchMyLeavesService()
-
-      setData(response.data.map((leave: Leave) => ({
-        id: leave.id,
-        employeeName: 'You',
-        leaveType: leave.leaveType?.name ?? 'Unknown',
-        startDate: leave.startDate,
-        endDate: leave.endDate,
-        reason: leave.reason,
-        status: leave.status as 'pending' | 'approved' | 'rejected' | 'cancelled',
-      })))
+      const service = viewAll && (user.role === 'admin' || user.role === 'superadmin') ? fetchAllLeavesService : fetchMyLeavesService
+      const response = await service()
+      setData(
+        response.data.map((leave: Leave) => ({
+          id: leave.id,
+          employeeName: leave.employee?.user?.name ?? 'You',
+          leaveType: leave.leaveType?.name ?? 'Unknown',
+          startDate: leave.startDate,
+          endDate: leave.endDate,
+          reason: leave.reason,
+          status: leave.status,
+        }))
+      )
     } catch (error) {
       toast.error('Failed to fetch leaves')
     } finally {
@@ -70,7 +69,10 @@ export function Leaves() {
     }
   }
 
-  React.useEffect(() => { loadLeaves() }, [])
+  React.useEffect(() => {
+    loadLeaves()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewAll])
 
   const onCreateLeave = async (formData: CreateLeaveFormData) => {
     try {
@@ -78,7 +80,6 @@ export function Leaves() {
       if (res.success) {
         toast.success(res.message)
         setAddOpen(false)
-        createForm.reset()
         loadLeaves()
       }
     } catch (error: any) {
@@ -123,6 +124,7 @@ export function Leaves() {
   }
 
   const columns = [
+    columnHelper.accessor('employeeName', { header: 'Employee', cell: (info) => info.getValue() }),
     columnHelper.accessor('leaveType', {
       header: 'Type',
       cell: (info) => <span className="capitalize">{info.getValue()}</span>,
@@ -148,7 +150,7 @@ export function Leaves() {
       id: 'actions',
       header: 'Actions',
       cell: (info) => {
-        const row = info.row.original
+        const row = info.row.original as LeaveRow
         const items: ActionMenuItem[] = []
 
         if (row.status === 'pending' && canApprove) {
@@ -156,7 +158,7 @@ export function Leaves() {
           items.push({ label: 'Reject', onClick: () => handleReject(row.id) })
         }
 
-        if (row.status === 'pending' && hasPermission('leave:delete')) {
+        if (row.status === 'pending' && canDelete) {
           items.push({ label: 'Delete', onClick: () => handleDelete(row.id), variant: 'danger' })
         }
 
@@ -166,13 +168,36 @@ export function Leaves() {
     }),
   ]
 
+  // ---------------------------------------------------------------------------
+  // UI – Create Leave Dialog
+  // ---------------------------------------------------------------------------
+  const leaveTypeOptions = [
+    { value: 'sick', label: 'Sick' },
+    { value: 'paid', label: 'Paid' },
+    { value: 'unpaid', label: 'Unpaid' },
+  ]
+
   return (
     <div className="space-y-6">
-      <PageHeader title="Leave Management" subtitle="View and request your leaves.">
-        {hasPermission('leave:create') && (
-          <Button onClick={() => setAddOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Request Leave
-          </Button>
+      <PageHeader
+        title="Leave Management"
+        subtitle="Request, view and approve employee leaves."
+      >
+        {canCreate && (
+          <button
+            className="bg-primary text-white px-4 py-2 rounded"
+            onClick={() => setAddOpen(true)}
+          >
+            Request Leave
+          </button>
+        )}
+        {(user.role === 'admin' || user.role === 'superadmin') && (
+          <button
+            className="ml-4 text-sm underline"
+            onClick={() => setViewAll((prev) => !prev)}
+          >
+            {viewAll ? 'Show My Leaves' : 'Show All Leaves'}
+          </button>
         )}
       </PageHeader>
 
@@ -185,23 +210,32 @@ export function Leaves() {
       />
 
       {/* Create Leave Dialog */}
-      <DialogForm open={addOpen} onClose={() => { setAddOpen(false); createForm.reset() }} title="Request Leave" subtitle="Submit a new leave request">
-        <form onSubmit={createForm.handleSubmit(onCreateLeave)}>
-          <div className="space-y-4">
-            <FormField label="Leave Type" required error={createForm.formState.errors.leaveType?.message}>
-              <FormSelect {...createForm.register('leaveTypeId')} error={!!createForm.formState.errors.leaveTypeId} options={leaveTypeOptions} placeholder="Select type" />
-            </FormField>
-            <FormField label="Start Date" required error={createForm.formState.errors.startDate?.message}>
-              <FormInput {...createForm.register('startDate')} error={!!createForm.formState.errors.startDate} type="date" />
-            </FormField>
-            <FormField label="End Date" required error={createForm.formState.errors.endDate?.message}>
-              <FormInput {...createForm.register('endDate')} error={!!createForm.formState.errors.endDate} type="date" />
-            </FormField>
-            <FormField label="Reason" required error={createForm.formState.errors.reason?.message}>
-              <FormInput {...createForm.register('reason')} error={!!createForm.formState.errors.reason} placeholder="Why do you need leave?" />
-            </FormField>
-          </div>
-          <FormActions onCancel={() => { setAddOpen(false); createForm.reset() }} submitLabel="Submit" isSubmitting={createForm.formState.isSubmitting} />
+      <DialogForm
+        open={addOpen}
+        onClose={() => {
+          setAddOpen(false)
+        }}
+        title="Request New Leave"
+        subtitle="Fill the form below to create a leave request"
+      >
+        <form onSubmit={createForm.handleSubmit(onCreateLeave)} className="space-y-4">
+          <FormField label="Leave Type" error={createForm.formState.errors.leaveTypeId?.message}>
+            <FormSelect
+              {...createForm.register('leaveTypeId')}
+              options={leaveTypeOptions}
+              placeholder="Select type"
+            />
+          </FormField>
+          <FormField label="Start Date" error={createForm.formState.errors.startDate?.message}>
+            <FormInput {...createForm.register('startDate')} type="date" />
+          </FormField>
+          <FormField label="End Date" error={createForm.formState.errors.endDate?.message}>
+            <FormInput {...createForm.register('endDate')} type="date" />
+          </FormField>
+          <FormField label="Reason" error={createForm.formState.errors.reason?.message}>
+            <FormInput {...createForm.register('reason')} placeholder="Why you need the leave" />
+          </FormField>
+          <FormActions onCancel={() => setAddOpen(false)} isSubmitting={createForm.formState.isSubmitting} />
         </form>
       </DialogForm>
     </div>

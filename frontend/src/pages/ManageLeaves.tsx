@@ -20,7 +20,7 @@ type LeaveRow = {
   startDate: string
   endDate: string
   reason: string
-  leaveStatus: 'pending' | 'approved' | 'rejected'
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled'
 }
 
 const columnHelper = createColumnHelper<LeaveRow>()
@@ -40,11 +40,11 @@ export function ManageLeaves() {
       setData(response.data.map((leave: Leave) => ({
         id: leave.id,
         employeeName: leave.employee?.user?.name ?? 'Unknown',
-        leaveType: leave.leaveType,
+        leaveType: leave.leaveType?.name ?? 'Unknown',
         startDate: leave.startDate,
         endDate: leave.endDate,
         reason: leave.reason,
-        leaveStatus: leave.leaveStatus,
+        status: leave.status,
       })))
     } catch (error) {
       toast.error('Failed to fetch leaves')
@@ -106,14 +106,14 @@ export function ManageLeaves() {
       cell: (info) => new Date(info.getValue()).toLocaleDateString(),
     }),
     columnHelper.accessor('reason', { header: 'Reason', cell: (info) => info.getValue() }),
-    columnHelper.accessor('leaveStatus', {
-      header: 'Status',
-      cell: (info) => {
-        const status = info.getValue()
-        const variant = status === 'approved' ? 'success' : status === 'rejected' ? 'danger' : 'warning'
-        return <StatusBadge label={status} variant={variant} />
-      },
-    }),
+    columnHelper.accessor('status', {
+        header: 'Status',
+        cell: (info) => {
+          const status = info.getValue()
+          const variant = status === 'approved' ? 'success' : status === 'rejected' ? 'danger' : 'warning'
+          return <StatusBadge label={status} variant={variant} />
+        },
+      }),
     columnHelper.display({
       id: 'actions',
       header: 'Actions',
@@ -121,14 +121,14 @@ export function ManageLeaves() {
         const row = info.row.original
         const items: ActionMenuItem[] = []
 
-        if (row.leaveStatus === 'pending' && canApprove) {
-          items.push({ label: 'Approve', onClick: () => handleApprove(row.id) })
-          items.push({ label: 'Reject', onClick: () => handleReject(row.id) })
-        }
+        if (row.status === 'pending' && canApprove) {
+            items.push({ label: 'Approve', onClick: () => handleApprove(row.id) })
+            items.push({ label: 'Reject', onClick: () => handleReject(row.id) })
+          }
 
-        if (row.leaveStatus === 'pending' && hasPermission('leave:delete')) {
-          items.push({ label: 'Delete', onClick: () => handleDelete(row.id), variant: 'danger' })
-        }
+          if (row.status === 'pending' && hasPermission('leave:delete')) {
+            items.push({ label: 'Delete', onClick: () => handleDelete(row.id), variant: 'danger' })
+          }
 
         if (!items.length) return null
         return <ActionMenu items={items} />

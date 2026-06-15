@@ -12,93 +12,139 @@ enum Role {
   admin
   manager
   teamleader
-  employee  
+  employee
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  password  String 
+  id       String @id @default(cuid())
+  name     String
+  email    String @unique
+  password String
 
   role Role @default(employee)
 
-  employeeId Employee? 
+  employeeId Employee?
 
   isActive Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  }
-
+}
 
 model Employee {
   id String @id @default(cuid())
 
   userId String @unique
-  user User @relation(fields:[userId], references:[id])
+  user   User   @relation(fields: [userId], references: [id])
 
   departmentId String
-  department Department @relation(fields:[departmentId], references:[id])
+  department   Department @relation(fields: [departmentId], references: [id])
 
   designationId String
-  designation Designation @relation(fields:[designationId], references:[id])
+  designation   Designation @relation(fields: [designationId], references: [id])
 
-  leaves Leave[]
+  reportsToId  String?
+  manager      Employee?  @relation("ManagerToEmployee", fields: [reportsToId], references: [id])
+  subordinates Employee[] @relation("ManagerToEmployee")
 
-  leaveActions Leave[] @relation("LeaveActionTakenBy")
-  
+  leaveBalances  LeaveBalance[]
+  leaveRequests  LeaveRequest[]
+  leaveHistories LeaveApprovalHistory[]
+
   isBlocked Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-enum LeaveType{
-  sick
-  paid
-  unpaid
-}
-enum LeaveStatus{
+enum LeaveStatus {
   approved
   pending
   rejected
+  cancelled
 }
-model Leave{
-  id String @id @default(cuid())
-  employeeId String
-  employee Employee @relation(fields:[employeeId], references:[id])
+
+model LeaveType {
+  id               String  @id @default(cuid())
+  name             String  @unique
+  description      String?
+  defaultDays      Float
+  isPaid           Boolean @default(true)
+  requiresApproval Boolean @default(true)
+
+  balances LeaveBalance[]
+  requests LeaveRequest[]
+}
+
+model LeaveBalance {
+  id          String    @id @default(cuid())
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id])
+  leaveTypeId String
+  leaveType   LeaveType @relation(fields: [leaveTypeId], references: [id])
+
+  year      Int
+  allocated Float
+  used      Float @default(0)
+  pending   Float @default(0)
+
+  @@unique([employeeId, leaveTypeId, year])
+}
+
+model LeaveRequest {
+  id          String    @id @default(cuid())
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id])
+  leaveTypeId String
+  leaveType   LeaveType @relation(fields: [leaveTypeId], references: [id])
 
   startDate DateTime
-  endDate DateTime
+  endDate   DateTime
+  totalDays Float
+
   reason String
-  rejectionReason String?
+  status LeaveStatus @default(pending)
 
-  leaveType LeaveType 
-  leaveStatus LeaveStatus @default(pending)
-
-  actionTakenById String?
-  actionTakenBy Employee? @relation("LeaveActionTakenBy", fields: [actionTakenById], references: [id])
+  histories LeaveApprovalHistory[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
+model LeaveApprovalHistory {
+  id             String       @id @default(cuid())
+  leaveRequestId String
+  leaveRequest   LeaveRequest @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
+
+  actionById String
+  actionBy   Employee @relation(fields: [actionById], references: [id])
+
+  action  String
+  comment String?
+
+  createdAt DateTime @default(now())
+}
+
+model Holiday {
+  id   String   @id @default(cuid())
+  name String
+  date DateTime @unique
+}
+
 model Department {
-  id String @id @default(cuid())
+  id   String @id @default(cuid())
   name String
 
-  employees Employee[]
+  employees    Employee[]
   designations Designation[]
 }
 
 model Designation {
-  id String @id @default(cuid())
+  id   String @id @default(cuid())
   name String
 
   departmentId String
-  department Department @relation(fields:[departmentId], references:[id])
+  department   Department @relation(fields: [departmentId], references: [id])
 
   employees Employee[]
 }

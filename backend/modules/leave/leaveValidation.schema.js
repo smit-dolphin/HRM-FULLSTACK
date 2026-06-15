@@ -10,7 +10,7 @@ export const createLeaveValidate = z
 
     reason: z.string().min(1, "enter valid reason"),
 
-    leaveType: z.enum(["sick", "paid", "unpaid"]),
+    leaveTypeId: z.string().min(1, "invalid leave type id"),
   })
   .superRefine((data, ctx) => {
     if (data.endDate < data.startDate) {

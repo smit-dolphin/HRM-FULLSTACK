@@ -23,8 +23,7 @@ const navItems: { icon: any; label: string; path: string; permission?: string }[
   { icon: UserRound, label: 'Users', path: '/users', permission: 'user:view' },
   { icon: Users, label: 'Employees', path: '/employees', permission: 'employee:view' },
   { icon: Building2, label: 'Departments', path: '/departments', permission: 'department:view' },
-  { icon: CalendarDays, label: 'My Leaves', path: '/leaves', permission: 'leave:view' },
-  { icon: CalendarDays, label: 'Leave Approvals', path: '/leaves/manage', permission: 'leave:approve' },
+  { icon: CalendarDays, label: 'Leaves', path: '/leaves', permission: 'leave:view' },
 ];
 
 type SidebarProps = {

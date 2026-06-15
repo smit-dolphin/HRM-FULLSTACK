@@ -3,267 +3,268 @@ import errorResponse from "../../helper/errorResponse.js"
 import successResponse from "../../helper/successResponse.js"
 import { createLeaveValidate } from "./leaveValidation.schema.js"
 
+// Calculate working days excluding weekends (basic implementation, no holiday table check yet for brevity, but we'll include weekends)
+function calculateWorkingDays(startDate, endDate) {
+    let count = 0;
+    let curDate = new Date(startDate);
+    let end = new Date(endDate);
+    while (curDate <= end) {
+        const dayOfWeek = curDate.getDay();
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) count++;
+        curDate.setDate(curDate.getDate() + 1);
+    }
+    return count;
+}
 
 export async function getAllLeaves(req, res) {
     try {
+        const employee = await prisma.employee.findUnique({ where: { userId: req.user.id } });
+        if (!employee) return errorResponse(res, 400, "Invalid employee", "Employee not found");
 
-        //how can we apply search and querry logic and pageination???
-        // 
-        const employeelist = await prisma.leave.findMany({
+        let filter = {};
+        
+        // If not superadmin/admin, restrict to subordinates
+        if (req.user.role !== 'superadmin' && req.user.role !== 'admin') {
+            filter.employee = { reportsToId: employee.id };
+        }
+
+        const leaves = await prisma.leaveRequest.findMany({
+            where: filter,
             include: {
                 employee: {
                     include: {
-                        user: {
-                            select: {
-                                id: true,
-                                name: true,
-                                email: true,
-                            }
-                        }
+                        user: { select: { id: true, name: true, email: true } }
                     }
                 },
-            }
-        })
-        return successResponse(res, 200, "leaves fetched successfully", employeelist)
-
+                leaveType: true,
+                histories: { include: { actionBy: { include: { user: { select: { name: true } } } } } }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+        
+        return successResponse(res, 200, "Leaves fetched successfully", leaves);
     } catch (error) {
-        return errorResponse(res, 500, "something went wrong", error.message)
+        return errorResponse(res, 500, "Something went wrong", error.message);
     }
 }
 
 export async function getMyLeaves(req, res) {
     try {
+        const getemployee = await prisma.employee.findUnique({ where: { userId: req.user.id } });
+        if (!getemployee) return errorResponse(res, 400, "Failed to fetch leaves", "Invalid employee id");
 
-        const id = req.user.id
+        const leaves = await prisma.leaveRequest.findMany({
+            where: { employeeId: getemployee.id },
+            include: {
+                leaveType: true,
+                histories: { include: { actionBy: { include: { user: { select: { name: true } } } } } }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
 
-        const getemployee = await prisma.employee.findUnique({
-            where: {
-                userId: id
-            }
-        })
-
-        if (!getemployee) {
-            return errorResponse(res, 400, "falied to fetch leaves", "invalid employee id")
-        }
-
-
-        const getleave = await prisma.leave.findMany({
-            where: {
-                employeeId: getemployee.id
-            }
-        })
-
-        return successResponse(res, 200, "leave  fetched successfully", getleave)
-
-
+        return successResponse(res, 200, "Leave fetched successfully", leaves);
     } catch (error) {
-        return errorResponse(res, 500, "something went wrong", error.message)
+        return errorResponse(res, 500, "Something went wrong", error.message);
     }
 }
 
 export async function getLeavesById(req, res) {
     try {
-
-        const { id } = req.params
-
-        const getleave = await prisma.leave.findUnique({
-            where: {
-                id,
-            },
+        const { id } = req.params;
+        const leave = await prisma.leaveRequest.findUnique({
+            where: { id },
             include: {
-                employee: {
-                    include: {
-                        user: {
-                            select: {
-                                id: true,
-                                name: true,
-                                email: true
-                            }
-                        }
-                    }
-                }
+                employee: { include: { user: { select: { id: true, name: true, email: true } } } },
+                leaveType: true,
+                histories: { include: { actionBy: { include: { user: { select: { name: true } } } } } }
             }
-        })
-
-        if (!getleave) {
-            return errorResponse(res, 500, "leave does not exist", "invalid leave id")
-        }
-        return successResponse(res, 200, "leave status fetched successfully", getleave)
-
-
+        });
+        if (!leave) return errorResponse(res, 404, "Leave does not exist", "Invalid leave id");
+        return successResponse(res, 200, "Leave status fetched successfully", leave);
     } catch (error) {
-        return errorResponse(res, 500, "something went wrong", error.message)
+        return errorResponse(res, 500, "Something went wrong", error.message);
     }
 }
 
 export async function createLeave(req, res) {
     try {
-        //what are we going to do ??
-        //so first get fields ,process them validate them
-        // and then create employee
-        //proper flow accross all end point 
-        //leaves??? employee id , start date ,end  date,
-        //reason,leaveType
-        // 1.validate inputes
-        // 2.if already exist
-        // 3.create
-        // 4.is created??
-        const result = createLeaveValidate.safeParse(req.body)
-        if (!result.success) {
-            return errorResponse(res, 400, "invalid input", result.error.issues[0].message)
-        }
-        const { startDate, endDate, reason, leaveType } = result.data
+        const result = createLeaveValidate.safeParse(req.body);
+        if (!result.success) return errorResponse(res, 400, "Invalid input", result.error.issues[0].message);
+        
+        const { startDate, endDate, reason, leaveTypeId } = result.data;
+        
+        const employee = await prisma.employee.findUnique({ where: { userId: req.user.id } });
+        if (!employee) return errorResponse(res, 400, "Employee doesn't exist", "Failed to create leave");
 
-        const ifEmployeeExist = await prisma.employee.findUnique({ where: { userId: req.user.id } })
-        if (!ifEmployeeExist) {
-            return errorResponse(res, 400, "employee dosent exist with this user id", "failed to create leave")
-        }
-
-        //if current start date is smaller than any end date  
-        const ifLeaveOverlap = await prisma.leave.findMany({
+        // Overlap check
+        const overlap = await prisma.leaveRequest.findFirst({
             where: {
-                employeeId: ifEmployeeExist.id,
+                employeeId: employee.id,
+                status: { not: "cancelled" },
                 endDate: { gte: new Date(startDate) },
                 startDate: { lte: new Date(endDate) }
             }
-        })
-        if (ifLeaveOverlap.length > 0) {
-            return errorResponse(res, 400, "leave overlap detected", "failed to create leave")
+        });
+        if (overlap) return errorResponse(res, 400, "Leave overlap detected", "Failed to create leave");
+
+        const totalDays = calculateWorkingDays(startDate, endDate);
+        if (totalDays <= 0) return errorResponse(res, 400, "Invalid dates", "No working days in range");
+
+        // Check balance
+        const currentYear = new Date(startDate).getFullYear();
+        const balance = await prisma.leaveBalance.findUnique({
+            where: { employeeId_leaveTypeId_year: { employeeId: employee.id, leaveTypeId, year: currentYear } }
+        });
+
+        if (!balance || (balance.allocated - balance.used - balance.pending) < totalDays) {
+            return errorResponse(res, 400, "Insufficient leave balance", "Request exceeds available days");
         }
 
-        const newLeave = await prisma.leave.create({
-            data: {
-                employeeId: ifEmployeeExist.id,
-                startDate,
-                endDate,
-                reason,
-                leaveType
-            }
-        })
+        // Create Request + History + update balance in transaction
+        const newLeave = await prisma.$transaction(async (tx) => {
+            const lr = await tx.leaveRequest.create({
+                data: {
+                    employeeId: employee.id,
+                    leaveTypeId,
+                    startDate: new Date(startDate),
+                    endDate: new Date(endDate),
+                    totalDays,
+                    reason,
+                    status: "pending"
+                }
+            });
 
-        if (!newLeave) {
-            return errorResponse(res, 400, "something went wrong", "failed to create leave")
-        }
+            await tx.leaveApprovalHistory.create({
+                data: {
+                    leaveRequestId: lr.id,
+                    actionById: employee.id,
+                    action: "SUBMITTED",
+                    comment: "Leave requested"
+                }
+            });
 
-        return successResponse(res, 201, "leave created successfully", newLeave)
+            await tx.leaveBalance.update({
+                where: { id: balance.id },
+                data: { pending: { increment: totalDays } }
+            });
 
+            return lr;
+        });
 
-
+        return successResponse(res, 201, "Leave created successfully", newLeave);
     } catch (error) {
-        return errorResponse(res, 500, "something went wrong", error.message)
+        return errorResponse(res, 500, "Something went wrong", error.message);
     }
 }
 
 export async function updateStatusLeave(req, res) {
     try {
-        const { status } = req.query
-        const { id } = req.params
-        const userId = req.user.id
+        const { status } = req.query;
+        const { id } = req.params;
+        const userId = req.user.id;
 
-        const actionEmployee = await prisma.employee.findUnique({
-            where: {
-                userId
+        const actionEmployee = await prisma.employee.findUnique({ where: { userId } });
+        if (!actionEmployee) return errorResponse(res, 400, "Invalid employee", "Invalid employee id");
+
+        if (!['approved', 'rejected', 'cancelled'].includes(status)) {
+            return errorResponse(res, 400, "Invalid status", "Enter valid status");
+        }
+
+        const leave = await prisma.leaveRequest.findUnique({
+            where: { id },
+            include: { employee: true }
+        });
+
+        if (!leave) return errorResponse(res, 404, "Leave does not exist", "Invalid leave id");
+
+        // Check hierarchy! Can only approve if actionEmployee is the reportsToId or superadmin
+        if (req.user.role !== 'superadmin' && leave.employee.reportsToId !== actionEmployee.id) {
+            return errorResponse(res, 403, "Forbidden", "You are not authorized to approve this leave");
+        }
+
+        if (leave.status !== 'pending') {
+            return errorResponse(res, 400, "Failed to update status", "Only pending leaves can be updated");
+        }
+
+        const currentYear = new Date(leave.startDate).getFullYear();
+        const balance = await prisma.leaveBalance.findUnique({
+            where: { employeeId_leaveTypeId_year: { employeeId: leave.employeeId, leaveTypeId: leave.leaveTypeId, year: currentYear } }
+        });
+
+        const updatedLeave = await prisma.$transaction(async (tx) => {
+            const lr = await tx.leaveRequest.update({
+                where: { id },
+                data: { status }
+            });
+
+            await tx.leaveApprovalHistory.create({
+                data: {
+                    leaveRequestId: id,
+                    actionById: actionEmployee.id,
+                    action: status.toUpperCase(),
+                    comment: `Status updated to ${status}`
+                }
+            });
+
+            // Adjust balances
+            if (balance) {
+                if (status === 'approved') {
+                    await tx.leaveBalance.update({
+                        where: { id: balance.id },
+                        data: { pending: { decrement: leave.totalDays }, used: { increment: leave.totalDays } }
+                    });
+                } else if (status === 'rejected' || status === 'cancelled') {
+                    await tx.leaveBalance.update({
+                        where: { id: balance.id },
+                        data: { pending: { decrement: leave.totalDays } }
+                    });
+                }
             }
-        })
 
-        if (!actionEmployee) {
-            return errorResponse(res, 400, "invalid employee", "invalid employee id")
-        }
+            return lr;
+        });
 
-        if (status !== "approved" && status !== "rejected") {
-            return errorResponse(res, 400, "invalid status", "enter valid status")
-        }
-        const getleave = await prisma.leave.findUnique({
-            where: {
-                id,
-            },
-            include:{
-                employee:true
-            }
-        })
-
-        if (!getleave) {
-            return errorResponse(res, 400, "leave does not exist", "invalid leave id")
-        }
-
-        if (getleave.employee.id===actionEmployee.id){
-            return errorResponse(res, 403, "forbidden access restricted", "can't update own leave")
-            
-        }
-
-        if (getleave.leaveStatus === "approved" || getleave.leaveStatus === "rejected") {
-            return errorResponse(res, 400, "failed to update status", "only can update pending status")
-
-        }
-
-        const updateleave = await prisma.leave.update({
-            where: {
-                id: getleave.id
-            },
-            data: {
-                leaveStatus: status,
-                actionTakenById:
-                    actionEmployee.id
-            }
-
-        })
-        return successResponse(res, 200, "leave status updated successfully", updateleave)
-
-
+        return successResponse(res, 200, "Leave status updated successfully", updatedLeave);
     } catch (error) {
-        return errorResponse(res, 500, "something went wrong", error.message)
+        return errorResponse(res, 500, "Something went wrong", error.message);
     }
 }
 
 export async function deleteLeave(req, res) {
-
     try {
+        const { id } = req.params;
+        const actionEmployee = await prisma.employee.findUnique({ where: { userId: req.user.id } });
+        if (!actionEmployee) return errorResponse(res, 400, "Invalid employee", "Invalid employee id");
 
-        const { id } = req.params
+        const leave = await prisma.leaveRequest.findUnique({ where: { id } });
+        if (!leave) return errorResponse(res, 404, "Leave does not exist", "Invalid leave id");
 
-        const userId = req.user.id
+        if (actionEmployee.id !== leave.employeeId && req.user.role !== 'superadmin') {
+            return errorResponse(res, 403, "Unauthorized", "Failed to delete leave");
+        }
 
-        const actionEmployee = await prisma.employee.findUnique({
-            where: {
-                userId
+        if (leave.status !== "pending") {
+            return errorResponse(res, 400, "Failed to delete leave", "Only pending leaves can be deleted");
+        }
+
+        const currentYear = new Date(leave.startDate).getFullYear();
+        const balance = await prisma.leaveBalance.findUnique({
+            where: { employeeId_leaveTypeId_year: { employeeId: leave.employeeId, leaveTypeId: leave.leaveTypeId, year: currentYear } }
+        });
+
+        const deleteleave = await prisma.$transaction(async (tx) => {
+            // Restore balance
+            if (balance) {
+                await tx.leaveBalance.update({
+                    where: { id: balance.id },
+                    data: { pending: { decrement: leave.totalDays } }
+                });
             }
-        })
+            return await tx.leaveRequest.delete({ where: { id } });
+        });
 
-        if (!actionEmployee) {
-            return errorResponse(res, 400, "invalid employee", "invalid employee id")
-        }
-
-        const getleave = await prisma.leave.findUnique({
-            where: {
-                id,
-            }
-        })
-
-        if (!getleave) {
-            return errorResponse(res, 400, "leave does not exist", "invalid leave id")
-        }
-
-        if (actionEmployee.id !== getleave.employeeId) {
-            return errorResponse(res, 400, "unauthorized to delete this leave", "failed to delete leave")
-        }
-        if (getleave.leaveStatus !== "pending") {
-            return errorResponse(res, 400, "failed to delete leave", "only can delete pending leaves")
-        }
-
-        const deleteleave = await prisma.leave.delete({
-            where: {
-                id: getleave.id
-            }
-        })
-        return successResponse(res, 200, "leave status deleted successfully", deleteleave)
-
-
+        return successResponse(res, 200, "Leave deleted successfully", deleteleave);
     } catch (error) {
-        return errorResponse(res, 500, "something went wrong", error.message)
+        return errorResponse(res, 500, "Something went wrong", error.message);
     }
-
 }
-
-
-
-

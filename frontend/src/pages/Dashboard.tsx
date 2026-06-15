@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Activity,
   ArrowUpRight,
@@ -59,6 +59,8 @@ const recentItems = [
 ];
 
 export function Dashboard() {
+
+ 
   return (
     <div className="space-y-6">
       {/* <section className="grid gap-4 xl:grid-cols-[1.7fr_0.9fr]">

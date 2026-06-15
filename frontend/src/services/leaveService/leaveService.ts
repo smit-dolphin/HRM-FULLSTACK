@@ -6,8 +6,8 @@ export interface Leave {
   startDate: string
   endDate: string
   reason: string
-  leaveType: 'sick' | 'paid' | 'unpaid'
-  leaveStatus: 'pending' | 'approved' | 'rejected'
+  leaveType: { id: string; name: string; isPaid: boolean }
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled'
   actionTakenById?: string
   employee?: {
     id: string
@@ -33,7 +33,7 @@ export interface CreateLeavePayload {
   startDate: string
   endDate: string
   reason: string
-  leaveType: 'sick' | 'paid' | 'unpaid'
+  leaveTypeId: string
 }
 
 export async function fetchAllLeavesService(): Promise<LeaveListResponse> {

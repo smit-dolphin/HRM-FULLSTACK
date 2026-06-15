@@ -35,6 +35,9 @@ type EmployeeRow = {
   isBlocked: boolean
   status: 'Active' | 'Blocked'
   createdAt: string
+  reportsToId?: string
+  managerId?: string
+  managerName?: string
 }
 
 const columnHelper = createColumnHelper<EmployeeRow>()
@@ -94,6 +97,9 @@ export function Employees() {
         isBlocked: emp.isBlocked,
         status: emp.isBlocked ? 'Blocked' : 'Active',
         createdAt: emp.user.createdAt,
+        reportsToId: emp.reportsToId,
+        managerId: emp.manager?.id,
+        managerName: emp.manager?.user?.name,
       })))
     } catch (error) {
       toast.error('Failed to fetch employees')
@@ -125,7 +131,9 @@ export function Employees() {
   const handleOpenEdit = (row: EmployeeRow) => {
     loadFormOptions()
     setEditingEmployee(row)
-    editForm.reset({ departmentId: row.departmentId, designationId: row.designationId })
+    setEditingEmployee(row)
+    editForm.reset({ departmentId: row.departmentId, designationId: row.designationId, reportsToId: row.reportsToId })
+    setEditOpen(true)
     setEditOpen(true)
   }
 
@@ -195,6 +203,14 @@ export function Employees() {
     columnHelper.accessor('email', { header: 'Email', cell: (info) => info.getValue() }),
     columnHelper.accessor('departmentName', { header: 'Department', cell: (info) => info.getValue() }),
     columnHelper.accessor('designationName', { header: 'Designation', cell: (info) => info.getValue() }),
+    columnHelper.accessor('reportsToId', {
+      header: 'Manager',
+      cell: (info) => {
+        const managerId = info.getValue();
+        const manager = data.find((emp) => emp.id === managerId);
+        return manager?.name ?? '—';
+      },
+    }),
     columnHelper.accessor('status', {
       header: 'Status',
       cell: (info) => {
@@ -252,6 +268,9 @@ export function Employees() {
             <FormField label="Department" required error={createForm.formState.errors.departmentId?.message}>
               <FormSelect {...createForm.register('departmentId')} error={!!createForm.formState.errors.departmentId} options={departments.map(d => ({ value: d.id, label: d.name }))} placeholder="Select department" />
             </FormField>
+            <FormField label="Manager" error={createForm.formState.errors.reportsToId?.message}>
+              <FormSelect {...createForm.register('reportsToId')} error={!!createForm.formState.errors.reportsToId} options={data.map(emp => ({ value: emp.id, label: emp.name }))} placeholder="Select manager (optional)" />
+            </FormField>
             <FormField label="Designation" required error={createForm.formState.errors.designationId?.message}>
               <FormSelect {...createForm.register('designationId')} error={!!createForm.formState.errors.designationId} options={createDesigOptions} placeholder={selectedCreateDeptId ? 'Select designation' : 'Select department first'} />
             </FormField>
@@ -266,6 +285,9 @@ export function Employees() {
           <div className="space-y-4">
             <FormField label="Department" error={editForm.formState.errors.departmentId?.message}>
               <FormSelect {...editForm.register('departmentId')} error={!!editForm.formState.errors.departmentId} options={departments.map(d => ({ value: d.id, label: d.name }))} placeholder="Select department" />
+            </FormField>
+            <FormField label="Manager" error={editForm.formState.errors.reportsToId?.message}>
+              <FormSelect {...editForm.register('reportsToId')} error={!!editForm.formState.errors.reportsToId} options={data.map(emp => ({ value: emp.id, label: emp.name }))} placeholder="Select manager (optional)" />
             </FormField>
             <FormField label="Designation" error={editForm.formState.errors.designationId?.message}>
               <FormSelect {...editForm.register('designationId')} error={!!editForm.formState.errors.designationId} options={editDesigOptions} placeholder={selectedEditDeptId ? 'Select designation' : 'Select department first'} />

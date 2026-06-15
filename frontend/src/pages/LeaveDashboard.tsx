@@ -20,6 +20,7 @@ import {
   createLeaveService,
   updateLeaveStatusService,
   deleteLeaveService,
+  cancelLeaveService,
   type Leave,
   type LeaveBalance,
 } from '@/services/leaveService/leaveService'
@@ -120,6 +121,11 @@ export function LeaveDashboard() {
     catch (error: any) { toast.error(error.response?.data?.message || 'Failed') }
   }
 
+  const handleCancel = async (id: string) => {
+    try { const res = await cancelLeaveService(id); if (res.success) { toast.success(res.message); loadLeaves(); loadMyBalance() } }
+    catch (error: any) { toast.error(error.response?.data?.message || 'Failed to cancel') }
+  }
+
   const columns = [
     ...(viewAll ? [columnHelper.accessor('employeeName', { header: 'Employee', cell: (info) => info.getValue() })] : []),
     columnHelper.accessor('leaveTypeName', { header: 'Type', cell: (info) => info.getValue() }),
@@ -143,6 +149,9 @@ export function LeaveDashboard() {
         if (row.status === 'pending' && canApprove && viewAll) {
           items.push({ label: 'Approve', onClick: () => handleApprove(row.id) })
           items.push({ label: 'Reject', onClick: () => handleReject(row.id) })
+        }
+        if ((row.status === 'pending' || row.status === 'approved') && !viewAll) {
+          items.push({ label: 'Cancel', onClick: () => handleCancel(row.id) })
         }
         if (row.status === 'pending' && canDelete) items.push({ label: 'Delete', onClick: () => handleDelete(row.id), variant: 'danger' })
         if (!items.length) return null

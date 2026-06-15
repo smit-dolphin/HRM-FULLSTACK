@@ -271,3 +271,72 @@ export async function deleteLeave(req, res) {
         return errorResponse(res, 500, "Something went wrong", error.message);
     }
 }
+
+export async function cancelLeave(req, res) {
+    try {
+        const { id } = req.params;
+        const employee = await prisma.employee.findUnique({ where: { userId: req.user.id } });
+        if (!employee) return errorResponse(res, 400, "Invalid employee", "Employee not found");
+
+        const leave = await prisma.leaveRequest.findUnique({ where: { id } });
+        if (!leave) return errorResponse(res, 404, "Leave does not exist", "Invalid leave id");
+
+        // Ownership check
+        if (leave.employeeId !== employee.id) {
+            return errorResponse(res, 403, "Forbidden", "You can only cancel your own leave");
+        }
+
+        // Only pending or approved can be cancelled
+        if (leave.status !== 'pending' && leave.status !== 'approved') {
+            return errorResponse(res, 400, "Cannot cancel", "Only pending or approved leaves can be cancelled");
+        }
+
+        // Cannot cancel if leave has already started
+        if (new Date(leave.startDate) <= new Date(new Date().toDateString())) {
+            return errorResponse(res, 400, "Cannot cancel", "Leave has already started or passed");
+        }
+        
+
+        const currentYear = new Date(leave.startDate).getFullYear();
+        const balance = await prisma.leaveBalance.findUnique({
+            where: { employeeId_leaveTypeId_year: { employeeId: leave.employeeId, leaveTypeId: leave.leaveTypeId, year: currentYear } }
+        });
+
+        const cancelledLeave = await prisma.$transaction(async (tx) => {
+            const lr = await tx.leaveRequest.update({
+                where: { id },
+                data: { status: 'cancelled' }
+            });
+
+            await tx.leaveApprovalHistory.create({
+                data: {
+                    leaveRequestId: id,
+                    actionById: employee.id,
+                    action: "CANCELLED",
+                    comment: "Leave cancelled by employee"
+                }
+            });
+
+            // Restore balance
+            if (balance) {
+                if (leave.status === 'pending') {
+                    await tx.leaveBalance.update({
+                        where: { id: balance.id },
+                        data: { pending: { decrement: leave.totalDays } }
+                    });
+                } else if (leave.status === 'approved') {
+                    await tx.leaveBalance.update({
+                        where: { id: balance.id },
+                        data: { used: { decrement: leave.totalDays } }
+                    });
+                }
+            }
+
+            return lr;
+        });
+
+        return successResponse(res, 200, "Leave cancelled successfully", cancelledLeave);
+    } catch (error) {
+        return errorResponse(res, 500, "Something went wrong", error.message);
+    }
+}

@@ -84,6 +84,11 @@ export async function deleteLeaveService(id: string): Promise<ApiResponse<Leave>
   return response.data
 }
 
+export async function cancelLeaveService(id: string): Promise<ApiResponse<Leave>> {
+  const response = await baseApi.post<ApiResponse<Leave>>(`/leave/${id}/cancel`)
+  return response.data
+}
+
 // Leave types
 export async function fetchLeaveTypesService(): Promise<ApiResponse<LeaveType[]>> {
   const response = await baseApi.get<ApiResponse<LeaveType[]>>('/leave/type')

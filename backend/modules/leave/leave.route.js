@@ -1,7 +1,7 @@
 import { Router } from "express"
 import authenticatUser from "../../middlewares/auth.middleware.js"
 import autherize from "../../middlewares/autherize.middleare.js"
-import { createLeave, deleteLeave, getAllLeaves, getLeavesById, getMyLeaves, updateStatusLeave } from "./leave.controller.js"
+import { cancelLeave, createLeave, deleteLeave, getAllLeaves, getLeavesById, getMyLeaves, updateStatusLeave } from "./leave.controller.js"
 import { createLeaveType, deleteLeaveType, getLeaveTypes, updateLeaveType } from "./leaveType.controller.js"
 import { getMyBalance, getBalanceByEmployee, updateBalance, bulkAllocateBalance } from "./leaveBalance.controller.js"
 
@@ -49,6 +49,7 @@ router.get('/my-leaves', authenticatUser, autherize('leave:view'), getMyLeaves)
 router.get('/', authenticatUser, autherize('leave:approve'), getAllLeaves)
 router.get('/:id', authenticatUser, autherize('leave:view'), getLeavesById)
 router.post('/', authenticatUser, autherize('leave:create'), createLeave)
+router.post('/:id/cancel', authenticatUser, autherize('leave:create'), cancelLeave)
 router.patch('/:id', authenticatUser, autherize('leave:approve'), updateStatusLeave)
 router.delete('/:id', authenticatUser, autherize('leave:delete'), deleteLeave)
 

@@ -167,7 +167,7 @@ export async function updateStatusLeave(req, res) {
         const userId = req.user.id;
 
         const actionEmployee = await prisma.employee.findUnique({ where: { userId } });
-        if (!actionEmployee) return errorResponse(res, 400, "Invalid employee", "Invalid employee id");
+        if (!actionEmployee && req.user.role!=="superadmin" && req.user.role!=="admin") return errorResponse(res, 400, "Invalid employee", "Invalid employee id");
 
         if (!['approved', 'rejected', 'cancelled'].includes(status)) {
             return errorResponse(res, 400, "Invalid status", "Enter valid status");
@@ -181,7 +181,7 @@ export async function updateStatusLeave(req, res) {
         if (!leave) return errorResponse(res, 404, "Leave does not exist", "Invalid leave id");
 
         // Check hierarchy! Can only approve if actionEmployee is the reportsToId or superadmin
-        if (req.user.role !== 'superadmin'  && leave.employee.reportsToId !== actionEmployee.id) {
+        if (req.user.role !== 'superadmin' && req.user.role !== 'admin'  && leave.employee.reportsToId !== actionEmployee.id) {
             return errorResponse(res, 403, "Forbidden", "You are not authorized to approve this leave");
         }
 
@@ -203,7 +203,7 @@ export async function updateStatusLeave(req, res) {
             await tx.leaveApprovalHistory.create({
                 data: {
                     leaveRequestId: id,
-                    actionById: actionEmployee.id,
+                    actionById: actionEmployee?.id ?? leave.employeeId,
                     action: status.toUpperCase(),
                     comment: `Status updated to ${status}`
                 }

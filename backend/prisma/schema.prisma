@@ -27,6 +27,8 @@ model User {
 
   isActive Boolean @default(true)
 
+  ownedProjects Project[] @relation("ProjectOwner") 
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -50,6 +52,11 @@ model Employee {
   leaveBalances  LeaveBalance[]
   leaveRequests  LeaveRequest[]
   leaveHistories LeaveApprovalHistory[]
+  managedTasks  Task[]          @relation("TaskManager")
+  assignedTasks Task[]          @relation("TaskAssignee")
+  ownedTasks    Task[]          @relation("TaskOwner")
+  sessions      TaskSessionTimer[]
+  projectMembers ProjectMember[]
 
   isBlocked Boolean @default(false)
 
@@ -154,4 +161,135 @@ model Designation {
   department   Department @relation(fields: [departmentId], references: [id])
 
   employees Employee[]
+}
+
+enum ProjectStatus{
+  planning
+  active
+  on_hold
+  completed
+  cancelled
+
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+
+  deadline DateTime
+
+  status ProjectStatus @default(planning)
+
+  ownerUserId String
+  owner       User          @relation("ProjectOwner", fields: [ownerUserId], references: [id])
+
+  members ProjectMember[]
+  tasks   Task[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProjectMember {
+  id String @id @default(cuid())
+
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id])
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, employeeId])
+}
+
+
+enum TaskStatus {
+  todo
+  in_progress
+  paused
+  completed
+  cancelled
+}
+
+enum TaskPriority {
+  low
+  medium
+  high
+  urgent
+}
+
+model Task {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+
+  ownerId String
+  owner   Employee @relation("TaskOwner", fields: [ownerId], references: [id])
+
+  managerId String?
+  manager   Employee? @relation("TaskManager", fields: [managerId], references: [id])
+
+  assigneeId String?
+  assignee   Employee? @relation("TaskAssignee", fields: [assigneeId], references: [id])
+
+  status   TaskStatus   @default(todo)
+  priority TaskPriority @default(medium)
+
+  deadline DateTime?
+
+  sessions TaskSessionTimer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum TaskSessionStatus{
+  running
+  paused
+  completed
+
+}
+
+model TaskSessionTimer{
+  id String @id @default(cuid())
+  
+  employeeId String
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  taskId String
+  task Task @relation(fields: [taskId], references: [id])
+
+  startTime DateTime
+  endTime DateTime?
+
+  totalSeconds Int?
+  break Break[]
+
+  taskSessionStatus TaskSessionStatus @default(running)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+}
+
+
+model Break{
+
+  id String @id @default(cuid())
+
+  taskSessionTimerId String
+  taskSessionTimer TaskSessionTimer @relation(fields:[taskSessionTimerId],references:[id])
+
+  startedAt DateTime
+  endedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
 }

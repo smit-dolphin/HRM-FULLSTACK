@@ -4,7 +4,7 @@ export const addEmployeeSchema = z.object({
     userId: z.string("invalid user format"),
     departmentId: z.string("invalid department format"),
     designationId: z.string("invalid designation format"),
-    reportsToId: z.string().optional()
+    reportsToId: z.string().optional().nullable()
 })
 
 export const updateEmployeeSchema = z.object({

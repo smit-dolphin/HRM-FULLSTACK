@@ -76,7 +76,8 @@ export async function createEmployee(req, res) {
         if (!result.success) {
             return errorResponse(res, 400, "invalid input", result.error.issues[0].message)
         }
-        const { userId, departmentId, designationId, reportsToId } = result.data
+        const { userId, departmentId, designationId, reportsToId: rawReportsToId } = result.data
+        const reportsToId = rawReportsToId || null
 
         const ifEmployeeExist = await prisma.employee.findUnique({ where: { userId } })
         if (ifEmployeeExist) {
@@ -108,7 +109,7 @@ export async function createEmployee(req, res) {
                     userId,
                     departmentId,
                     designationId,
-                    reportsToId
+                    reportsToId:reportsToId??null
                 }
             })
 

@@ -3,6 +3,7 @@ import successResponse from "../../helper/successResponse.js"
 import {createUserSchema,userUpdateSchema} from "../users/userValidation.schema.js"
 import bcrypt from "bcrypt"
 import prisma from "../../config/prisma.config.js"
+import { rolePermissions } from "../../const/rolesPermissions.js"
 
 
 export async function fetchAllUsers(req, res) {
@@ -147,15 +148,27 @@ export async function createUser(req, res) {
             salt
         )
 
-        // Create User
-        const createdUser = await prisma.user.create({
-            data: {
-                name,
-                email,
-                password: hashedPassword,
-                role,
-                isActive: true
-            }
+        const defaultPermissions = rolePermissions[role] || []
+
+        const createdUser = await prisma.$transaction(async (tx) => {
+            const user = await tx.user.create({
+                data: {
+                    name,
+                    email,
+                    password: hashedPassword,
+                    role,
+                    isActive: true
+                }
+            })
+
+            await tx.permission.create({
+                data: {
+                    userId: user.id,
+                    permissions: defaultPermissions
+                }
+            })
+
+            return user
         })
 
         // Response Data

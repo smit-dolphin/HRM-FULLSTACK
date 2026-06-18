@@ -30,12 +30,26 @@ export async function signup(req, res) {
         }
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt)
-        const createdUser = await prisma.user.create({
-            data: {
-                name,
-                email,
-                password: hashedPassword
-            }
+        const defaultRole = "employee"
+        const defaultPermissions = rolePermissions[defaultRole] || []
+        const createdUser = await prisma.$transaction(async (tx) => {
+            const user = await tx.user.create({
+                data: {
+                    name,
+                    email,
+                    password: hashedPassword,
+                    role: defaultRole
+                }
+            })
+
+            await tx.permission.create({
+                data: {
+                    userId: user.id,
+                    permissions: defaultPermissions
+                }
+            })
+
+            return user
         })
         if (!createdUser) {
             return errorResponse(res, 500, "failed to create user", "something went worng while creating user")
@@ -69,6 +83,7 @@ export async function signin(req, res) {
         }
         const { email, password } = result.data
         const existingUser = await prisma.user.findUnique({ where: { email } })
+        // console.log(existingUser)
         if (!existingUser) {
             return errorResponse(res, 400, "something went wrong", "user not exist")
         }
@@ -92,7 +107,11 @@ export async function signin(req, res) {
 
         }
 
-        const permissions=rolePermissions[newuserdata.role]
+        const userpermissions=await prisma.permission.findUnique({where:{userId:newuserdata.id}})
+        const permissions=userpermissions?.permissions ?? []
+        // const permissions=rolePermissions[newuserdata.role]
+
+
         return res.status(200).cookie('accessToken', accessToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",

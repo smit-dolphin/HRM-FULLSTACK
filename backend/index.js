@@ -10,6 +10,7 @@ import { designationRouter } from "./modules/designation/designation.route.js"
 import prisma from "./config/prisma.config.js"
 import { leaveRouter } from "./modules/leave/leave.route.js"
 import {holidayRouter} from "./modules/holiday/holiday.route.js"
+import { permissionRouter } from "./modules/permissions/permissions.route.js"
 
 // import path from "path"
 // import { fileURLToPath } from "url"
@@ -24,17 +25,41 @@ app.use(express.json())
 app.use(express.urlencoded({extended:true}))
 app.use(cookieParser())
 
-// const createhelper=async ()=>{
-//     await prisma.user.create({
-//                 data: {
-//                     name:"smit",
-//                     email:"smitgajjar@gmail.com",
-//                     password:"user@123",
-//                     role:"superadmin"
-//                 }
-//             })
-// }
-
+// const createhelper= async () => {
+//   await prisma.permission.update({
+//     where:{ userId: "cmqgi1for0000vj945ftiwx86",
+// },
+//     data: {
+      
+//       permissions: [
+//          "user:view",
+//   "user:create",
+//   "user:edit",
+//   "user:delete",
+//   "employee:view",
+//   "employee:create",
+//   "employee:edit",
+//   "employee:delete",
+//   "employee:block",
+//   "department:view",
+//   "department:create",
+//   "department:edit",
+//   "department:delete",
+//   "designation:view",
+//   "designation:create",
+//   "designation:edit",
+//   "designation:delete",
+//   "leave:view",
+//   "leave:create",
+//   "leave:approve",
+//   "leave:delete",
+//   "leave:type:manage",
+//   "leave:balance:view",
+//   "leave:balance:edit",
+//       ],
+//     },
+//   });
+// };
 // createhelper()
 
 
@@ -46,6 +71,7 @@ app.use('/api/department',departmentRouter)
 app.use('/api/designation',designationRouter)
 app.use('/api/leave',leaveRouter)
 app.use('/api/holiday',holidayRouter)
+app.use('/api/permission',permissionRouter)
 
 
 // console.log(import.meta.dirname)

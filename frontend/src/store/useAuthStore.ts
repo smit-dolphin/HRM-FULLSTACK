@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { signoutService } from '@/services/authService/authService';
 import { toast } from 'sonner';
-import { persist } from 'zustand/middleware';
+import { devtools, persist } from 'zustand/middleware';
 
 type Role = 'employee' | 'admin' | 'manager' | 'teamleader' | 'superadmin';
 
@@ -26,6 +26,7 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>()(
+  devtools(
   persist(
     (set, get) => ({
       user: null,
@@ -35,6 +36,7 @@ export const useAuthStore = create<AuthState>()(
         user,
         isAuthenticated: true,
         permissions: user.permissions || [],
+
       }),
       logout: async () => {
         try {
@@ -50,9 +52,14 @@ export const useAuthStore = create<AuthState>()(
         set({ user: null, isAuthenticated: false, permissions: [] });
       },
       hasPermission: (permission: string) => {
-        return get().permissions.includes(permission);
+
+        const perms = get().permissions;
+        if (!perms) return false;
+        if (Array.isArray(perms)) return perms.includes(permission);
+        if (typeof perms === 'object') return Boolean((perms as Record<string, boolean>)[permission]);
+        return false;
       },
     }),
     { name: "auth-storage" }
   )
-)
+))

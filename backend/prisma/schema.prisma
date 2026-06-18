@@ -26,9 +26,20 @@ model User {
   employeeId Employee?
 
   isActive Boolean @default(true)
+  permission Permission[] 
 
   ownedProjects Project[] @relation("ProjectOwner") 
 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Permission{
+  id String @id @default(cuid())
+  
+  userId String @unique
+  user User @relation(fields: [userId], references: [id])
+  permissions String[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

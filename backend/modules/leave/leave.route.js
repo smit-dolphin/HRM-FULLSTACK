@@ -41,9 +41,9 @@ router.post('/balance/allocate', authenticatUser, autherize('leave:balance:edit'
 // Leave types
 router.get('/type', authenticatUser, autherize('leave:view'), getLeaveTypes)
 router.post('/type', authenticatUser, autherize('leave:type:manage'), createLeaveType)
-router.patch('/type/:id', authenticatUser, autherize('leave:type:manage'), updateLeaveType)
-router.delete('/type/:id', authenticatUser, autherize('leave:type:manage'), deleteLeaveType)
-
+router.patch('/type/:id', authenticatUser, autherize('leave:type:edit'), updateLeaveType)
+router.delete('/type/:id', authenticatUser, autherize('leave:type:delete'), deleteLeaveType)
+    
 // Leave requests
 router.get('/my-leaves', authenticatUser, autherize('leave:view'), getMyLeaves)
 router.get('/', authenticatUser, autherize('leave:approve'), getAllLeaves)

@@ -1,5 +1,6 @@
 import React from 'react'
 import { createColumnHelper } from '@tanstack/react-table'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Download, Plus, ArrowUpDown } from 'lucide-react'
 import { useForm } from 'react-hook-form'
@@ -43,6 +44,7 @@ const roleOptions = [
 ]
 
 export function Users() {
+  const navigate = useNavigate()
   const { hasPermission } = useAuthStore()
   const [data, setData] = React.useState<UserRow[]>([])
   const [loading, setLoading] = React.useState(true)
@@ -164,6 +166,7 @@ export function Users() {
         const row = info.row.original
         const items: ActionMenuItem[] = []
         if (hasPermission('user:edit')) items.push({ label: 'Edit', onClick: () => handleOpenEdit(row) })
+        if (hasPermission('user:edit')) items.push({ label: 'Permissions', onClick: () => navigate(`/permissions/${row.id}`) })
         if (hasPermission('user:delete')) items.push({ label: 'Deactivate', onClick: () => handleDeactivate(row.id) })
         if (hasPermission('user:delete')) items.push({ label: 'Delete', onClick: () => handleDelete(row.id), variant: 'danger' })
         if (!items.length) return null

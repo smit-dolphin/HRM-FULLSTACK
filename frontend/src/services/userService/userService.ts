@@ -16,7 +16,7 @@ export interface UserListResponse {
   success: boolean;
   message: string;
   data: User[];
-  meta: {
+  meta?: {
     totalData: number;
     totalPages: number;
     currentPage: number;
@@ -44,8 +44,24 @@ export interface UpdateUserPayload {
   isActive?: boolean;
 }
 
-export async function fetchUsersService(page = 1, limit = 100): Promise<UserListResponse> {
-  const response = await baseApi.get<UserListResponse>('/user', { params: { page, limit } });
+export interface FetchUsersParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  role?: Role | '';
+  isActive?: '' | 'true' | 'false';
+  from?: string;
+  to?: string;
+}
+
+function cleanParams(params: FetchUsersParams) {
+  return Object.fromEntries(
+    Object.entries(params).filter(([, value]) => value !== '' && value !== undefined && value !== null)
+  )
+}
+
+export async function fetchUsersService(params: FetchUsersParams = {}): Promise<UserListResponse> {
+  const response = await baseApi.get<UserListResponse>('/user', { params: cleanParams(params) });
   return response.data;
 }
 

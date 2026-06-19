@@ -1,7 +1,7 @@
 import React from 'react'
 import { createColumnHelper } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
-import { Plus, RefreshCw } from 'lucide-react'
+import { Plus, RefreshCw, ChevronLeft, ChevronRight, Search, Filter, X } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
@@ -11,6 +11,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { DataTable } from '@/components/ui/DataTable'
 import { ActionMenu, type ActionMenuItem } from '@/components/ui/ActionMenu'
 import { DialogForm, FormField, FormInput, FormSelect, FormActions } from '@/components/forms/DialogForm'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useAuthStore } from '@/store/useAuthStore'
 import {
   fetchAllLeavesService,
@@ -23,6 +24,7 @@ import {
   deleteLeaveService,
   type Leave,
   type LeaveBalance,
+  type FetchLeavesParams,
 } from '@/services/leaveService/leaveService'
 import { fetchEmployeesService, type Employee } from '@/services/employeeService/employeeService'
 import { createLeaveSchema, type CreateLeaveFormData } from '@/schemas/leave.schema'
@@ -41,12 +43,28 @@ type LeaveRow = {
 
 const columnHelper = createColumnHelper<LeaveRow>()
 
+const statusOptions = [
+  { value: '', label: 'All Status' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'rejected', label: 'Rejected' },
+  { value: 'cancelled', label: 'Cancelled' },
+]
+
+const limitOptions = [
+  { value: '5', label: '5 items' },
+  { value: '10', label: '10 items' },
+  { value: '20', label: '20 items' },
+]
+
 export function Leaves() {
   const { hasPermission } = useAuthStore()
   const [data, setData] = React.useState<LeaveRow[]>([])
   const [loading, setLoading] = React.useState(true)
   const [addOpen, setAddOpen] = React.useState(false)
   const [leaveTypeOptions, setLeaveTypeOptions] = React.useState<{ value: string; label: string }[]>([])
+  const [meta, setMeta] = React.useState<{ totalData: number; totalPages: number; currentPage: number; itemPerPage: number } | null>(null)
+  const [filtersOpen, setFiltersOpen] = React.useState(false)
 
   // Balance state
   const [myBalance, setMyBalance] = React.useState<LeaveBalance[]>([])
@@ -64,23 +82,33 @@ export function Leaves() {
   const canManageBalance = hasPermission('leave:balance:edit')
   const canViewBalance = hasPermission('leave:balance:view')
 
-  // Load my balance
+  const [query, setQuery] = React.useState<FetchLeavesParams>({
+    page: 1,
+    limit: 5,
+    search: '',
+    status: '',
+    from: '',
+    to: '',
+  })
+
   const loadMyBalance = async () => {
     try {
       setBalanceLoading(true)
       const res = await fetchMyBalanceService()
       if (res.success) setMyBalance(res.data)
-    } catch { /* ignore if not employee */ }
-    finally { setBalanceLoading(false) }
+    } catch {
+      // ignore if not employee
+    } finally {
+      setBalanceLoading(false)
+    }
   }
 
-  // Load leaves
-  const loadLeaves = async () => {
+  const loadLeaves = async (params = query) => {
     try {
       setLoading(true)
       const response = canApprove
-        ? await fetchAllLeavesService()
-        : await fetchMyLeavesService()
+        ? await fetchAllLeavesService(params)
+        : await fetchMyLeavesService(params)
 
       setData(response.data.map((leave: Leave) => ({
         id: leave.id,
@@ -92,7 +120,8 @@ export function Leaves() {
         reason: leave.reason,
         status: leave.status,
       })))
-    } catch (error) {
+      setMeta(response.meta ?? null)
+    } catch {
       toast.error('Failed to fetch leaves')
     } finally {
       setLoading(false)
@@ -103,27 +132,39 @@ export function Leaves() {
     try {
       const res = await fetchLeaveTypesService()
       if (res.success) setLeaveTypeOptions(res.data.map(t => ({ value: t.id, label: t.name })))
-    } catch { toast.error('Failed to load leave types') }
+    } catch {
+      toast.error('Failed to load leave types')
+    }
   }
 
   React.useEffect(() => {
-    loadLeaves()
+    const timer = window.setTimeout(() => {
+      loadLeaves(query)
+    }, query.search ? 350 : 0)
+
+    return () => window.clearTimeout(timer)
+  }, [query, canApprove])
+
+  React.useEffect(() => {
     loadMyBalance()
   }, [])
 
-  // Admin: load employees for balance management
   const loadEmployees = async () => {
     try {
-      const res = await fetchEmployeesService()
+      const res = await fetchEmployeesService({ page: 1, limit: 1000 })
       setEmployees(res.data.map((e: Employee) => ({ value: e.id, label: e.user.name })))
-    } catch { toast.error('Failed to load employees') }
+    } catch {
+      toast.error('Failed to load employees')
+    }
   }
 
   const loadEmpBalance = async (empId: string) => {
     try {
       const res = await fetchBalanceByEmployeeService(empId)
       if (res.success) setEmpBalance(res.data)
-    } catch { toast.error('Failed to load balance') }
+    } catch {
+      toast.error('Failed to load balance')
+    }
   }
 
   const handleUpdateBalance = async () => {
@@ -161,7 +202,7 @@ export function Leaves() {
         toast.success(res.message)
         setAddOpen(false)
         createForm.reset()
-        loadLeaves()
+        loadLeaves(query)
         loadMyBalance()
       }
     } catch (error: any) {
@@ -172,22 +213,49 @@ export function Leaves() {
   const handleApprove = async (id: string) => {
     try {
       const res = await updateLeaveStatusService(id, 'approved')
-      if (res.success) { toast.success(res.message); loadLeaves() }
+      if (res.success) { toast.success(res.message); loadLeaves(query) }
     } catch (error: any) { toast.error(error.response?.data?.message || 'Failed to approve') }
   }
 
   const handleReject = async (id: string) => {
     try {
       const res = await updateLeaveStatusService(id, 'rejected')
-      if (res.success) { toast.success(res.message); loadLeaves() }
+      if (res.success) { toast.success(res.message); loadLeaves(query) }
     } catch (error: any) { toast.error(error.response?.data?.message || 'Failed to reject') }
   }
 
   const handleDelete = async (id: string) => {
     try {
       const res = await deleteLeaveService(id)
-      if (res.success) { toast.success(res.message); loadLeaves(); loadMyBalance() }
+      if (res.success) { toast.success(res.message); loadLeaves(query); loadMyBalance() }
     } catch (error: any) { toast.error(error.response?.data?.message || 'Failed to delete') }
+  }
+
+  const setQueryValue = (key: keyof FetchLeavesParams, value: string | number | undefined) => {
+    setQuery((prev) => ({
+      ...prev,
+      [key]: value,
+      page: key === 'page' ? Number(value) || 1 : 1,
+    }))
+  }
+
+  const clearFilter = (key: keyof FetchLeavesParams) => {
+    setQuery((prev) => ({
+      ...prev,
+      [key]: '',
+      page: 1,
+    }))
+  }
+
+  const clearAllFilters = () => {
+    setQuery((prev) => ({
+      page: 1,
+      limit: prev.limit ?? 5,
+      search: '',
+      status: '',
+      from: '',
+      to: '',
+    }))
   }
 
   const columns = [
@@ -223,6 +291,13 @@ export function Leaves() {
     }),
   ]
 
+  const totalPages = meta?.totalPages ?? 1
+  const currentPage = meta?.currentPage ?? query.page ?? 1
+  const activeFilterCount = ['search', 'status', 'from', 'to'].filter((key) => {
+    const value = query[key as keyof FetchLeavesParams]
+    return value !== '' && value !== undefined && value !== null
+  }).length
+
   return (
     <div className="space-y-6">
       <PageHeader title="Leave Management" subtitle={canApprove ? "Manage all employee leave requests." : "View and request your leaves."}>
@@ -238,7 +313,6 @@ export function Leaves() {
         )}
       </PageHeader>
 
-      {/* My Balance Cards */}
       {!balanceLoading && myBalance.length > 0 && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {myBalance.map(b => (
@@ -248,7 +322,7 @@ export function Leaves() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{b.allocated - b.used - b.pending} <span className="text-sm font-normal text-muted-foreground">remaining</span></div>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="mt-1 text-xs text-muted-foreground">
                   {b.allocated} allocated · {b.used} used · {b.pending} pending
                 </p>
               </CardContent>
@@ -257,7 +331,6 @@ export function Leaves() {
         </div>
       )}
 
-      {/* Admin: Manage Employee Balance */}
       {canViewBalance && (
         <Card>
           <CardHeader className="pb-3">
@@ -288,7 +361,7 @@ export function Leaves() {
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
-                          className="w-16 h-8 rounded border px-2 text-sm"
+                          className="h-8 w-16 rounded border px-2 text-sm"
                           defaultValue={b.allocated}
                           onBlur={(e) => setEditingBalance({ leaveTypeId: b.leaveTypeId, allocated: Number(e.target.value) })}
                         />
@@ -305,16 +378,136 @@ export function Leaves() {
         </Card>
       )}
 
-      {/* Leave Requests Table */}
+      <div className="rounded-2xl border bg-card p-4 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={query.search ?? ''}
+              onChange={(e) => setQueryValue('search', e.target.value)}
+              placeholder="Search leave requests..."
+              className="h-12 w-full rounded-xl border border-input bg-background pl-10 pr-4 text-sm outline-none transition focus:border-primary"
+            />
+          </div>
+
+          <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="h-12 min-w-40 justify-between rounded-xl border-dashed px-4">
+                <span className="flex items-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  Filters
+                </span>
+                <span className="flex items-center gap-2">
+                  {activeFilterCount > 0 && (
+                    <span className="rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                  <span className="text-xs text-muted-foreground">{filtersOpen ? 'Close' : 'Open'}</span>
+                </span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[520px] p-4" align="end">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Leave Filters</p>
+                    <p className="text-sm text-muted-foreground">Refine requests without cluttering the page.</p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={clearAllFilters} className="gap-1">
+                    <X className="h-4 w-4" />
+                    Clear all
+                  </Button>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <FormSelect
+                    value={query.status ?? ''}
+                    onChange={(e) => setQueryValue('status', e.target.value)}
+                    options={statusOptions}
+                    placeholder="Status"
+                  />
+                  <FormInput
+                    type="date"
+                    value={query.from ?? ''}
+                    onChange={(e) => setQueryValue('from', e.target.value)}
+                    placeholder="From"
+                  />
+                  <FormInput
+                    type="date"
+                    value={query.to ?? ''}
+                    onChange={(e) => setQueryValue('to', e.target.value)}
+                    placeholder="To"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <p className="text-muted-foreground">Only filled filters are passed to the API.</p>
+                  <div className="flex gap-2">
+                    {query.status && (
+                      <Button variant="outline" size="sm" onClick={() => clearFilter('status')}>Clear status</Button>
+                    )}
+                    {(query.from || query.to) && (
+                      <Button variant="outline" size="sm" onClick={() => { clearFilter('from'); clearFilter('to') }}>
+                        Clear dates
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          <div className="flex items-center gap-3 lg:ml-auto">
+            <FormSelect
+              value={String(query.limit ?? 5)}
+              onChange={(e) => setQueryValue('limit', Number(e.target.value))}
+              options={limitOptions}
+              placeholder="Items per page"
+              className="w-40"
+            />
+            <Button variant="outline" onClick={clearAllFilters} className="h-12 rounded-xl px-5">
+              Reset
+            </Button>
+          </div>
+        </div>
+      </div>
+
       <DataTable
         data={data}
         columns={columns}
         loading={loading}
-        searchPlaceholder="Search leaves..."
+        searchable={false}
         emptyMessage="No leave requests found."
       />
 
-      {/* Create Leave Dialog */}
+      <div className="flex flex-col gap-3 rounded-xl border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">
+          Showing page {currentPage} of {totalPages}
+          {meta ? ` · ${meta.totalData} total leave requests` : ''}
+        </p>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setQueryValue('page', Math.max(1, currentPage - 1))}
+            disabled={currentPage <= 1 || loading}
+          >
+            <ChevronLeft className="mr-1 h-4 w-4" />
+            Prev
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setQueryValue('page', Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage >= totalPages || loading}
+          >
+            Next
+            <ChevronRight className="ml-1 h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
       <DialogForm open={addOpen} onClose={() => { setAddOpen(false); createForm.reset() }} title="Request Leave" subtitle="Submit a new leave request">
         <form onSubmit={createForm.handleSubmit(onCreateLeave)}>
           <div className="space-y-4">

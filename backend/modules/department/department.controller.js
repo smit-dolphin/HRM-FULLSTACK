@@ -1,14 +1,27 @@
 import prisma from "../../config/prisma.config.js"
 import errorResponse from "../../helper/errorResponse.js"
 import successResponse from "../../helper/successResponse.js"
+import { searchHelper } from "../../helper/queryBuilder.js"
+import { paginationHelper } from "../../helper/paginationHelper.js"
 import { createDepartmentSchema, updateDepartmentSchema } from "./departmentValidation.schema.js"
 
 export async function fetchAllDepartments(req, res) {
     try {
-        const departments = await prisma.department.findMany({
-            include: { designations: true }
-        })
-        return successResponse(res, 200, "departments fetched successfully", departments)
+        const where = {}
+        searchHelper(where, req.query.search, ["name"])
+        const page = paginationHelper(req)
+
+        const [totalData, departments] = await Promise.all([
+            prisma.department.count({ where }),
+            prisma.department.findMany({
+                where,
+                skip: page.skip,
+                take: page.limit,
+                include: { designations: true }
+            })
+        ])
+
+        return successResponse(res, 200, "departments fetched successfully", departments, paginationHelper(req, totalData, departments.length).meta)
     } catch (err) {
         return errorResponse(res, 500, "failed to fetch departments", err?.message)
     }

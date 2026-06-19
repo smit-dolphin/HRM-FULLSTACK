@@ -6,7 +6,9 @@ import autherize from "../../middlewares/autherize.middleare.js";
 const router = Router()
 
 router.get('/me', authenticatUser, getLoggedinUser)
-router.get('/', authenticatUser, autherize('user:view'), fetchAllUsers)
+router.get('/', fetchAllUsers)
+// router.get('/', authenticatUser, autherize('user:view'), fetchAllUsers)
+
 router.get('/:id', authenticatUser, autherize('user:view'), fetchUserById)
 router.post('/', authenticatUser, autherize('user:create'), createUser)
 router.patch('/:id', authenticatUser, autherize('user:edit'), updateUser)

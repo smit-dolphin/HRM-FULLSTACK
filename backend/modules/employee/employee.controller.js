@@ -2,27 +2,43 @@ import prisma from "../../config/prisma.config.js"
 import errorResponse from "../../helper/errorResponse.js"
 import successResponse from "../../helper/successResponse.js"
 import { addEmployeeSchema, updateEmployeeSchema } from "./employeeValidation.schema.js"
+import { booleanFilter, searchHelper } from "../../helper/queryBuilder.js"
+import { paginationHelper } from "../../helper/paginationHelper.js"
 
 export async function getAllEmployee(req, res) {
     try {
+        const where = {}
+        const { search, isBlocked, departmentId, designationId, reportsToId } = req.query
 
-        //how can we apply search and querry logic and pageination???
-        // 
-        const employeelist = await prisma.employee.findMany({
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        createdAt: true
-                    }
-                },
-                department: true,
-                designation: true
-            }
-        })
-        return successResponse(res, 200, "employees fetched successfully", employeelist)
+        searchHelper(where, search, ["user.name", "user.email"])
+        booleanFilter(where, "isBlocked", isBlocked)
+
+        if (departmentId) where.departmentId = departmentId
+        if (designationId) where.designationId = designationId
+        if (reportsToId) where.reportsToId = reportsToId
+        const page = paginationHelper(req)
+
+        const [totalData, employeelist] = await Promise.all([
+            prisma.employee.count({ where }),
+            prisma.employee.findMany({
+                where,
+                skip: page.skip,
+                take: page.limit,
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true,
+                            createdAt: true
+                        }
+                    },
+                    department: true,
+                    designation: true
+                }
+            })
+        ])
+        return successResponse(res, 200, "employees fetched successfully", employeelist, paginationHelper(req, totalData, employeelist.length).meta)
 
     } catch (error) {
         return errorResponse(res, 500, "something went wrong", error.message)

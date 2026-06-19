@@ -1,6 +1,8 @@
 import prisma from "../../config/prisma.config.js"
 import errorResponse from "../../helper/errorResponse.js"
 import successResponse from "../../helper/successResponse.js"
+import { dateRangeFilter, searchHelper } from "../../helper/queryBuilder.js"
+import { paginationHelper } from "../../helper/paginationHelper.js"
 
 // Get my own balance (current year)
 export async function getMyBalance(req, res) {
@@ -10,12 +12,21 @@ export async function getMyBalance(req, res) {
 
         const year = Number(req.query.year) || new Date().getFullYear()
 
-        const balances = await prisma.leaveBalance.findMany({
-            where: { employeeId: employee.id, year },
-            include: { leaveType: true }
-        })
+        const where = { employeeId: employee.id, year }
+        searchHelper(where, req.query.search, ["leaveType.name"])
+        dateRangeFilter(where, "createdAt", req.query.from, req.query.to)
+        const page = paginationHelper(req)
+        const [totalData, balances] = await Promise.all([
+            prisma.leaveBalance.count({ where }),
+            prisma.leaveBalance.findMany({
+                where,
+                skip: page.skip,
+                take: page.limit,
+                include: { leaveType: true }
+            })
+        ])
 
-        return successResponse(res, 200, "Balance fetched successfully", balances)
+        return successResponse(res, 200, "Balance fetched successfully", balances, paginationHelper(req, totalData, balances.length).meta)
     } catch (error) {
         return errorResponse(res, 500, "Something went wrong", error.message)
     }
@@ -30,12 +41,21 @@ export async function getBalanceByEmployee(req, res) {
         const employee = await prisma.employee.findUnique({ where: { id: employeeId } })
         if (!employee) return errorResponse(res, 404, "Employee not found")
 
-        const balances = await prisma.leaveBalance.findMany({
-            where: { employeeId, year },
-            include: { leaveType: true }
-        })
+        const where = { employeeId, year }
+        searchHelper(where, req.query.search, ["leaveType.name"])
+        dateRangeFilter(where, "createdAt", req.query.from, req.query.to)
+        const page = paginationHelper(req)
+        const [totalData, balances] = await Promise.all([
+            prisma.leaveBalance.count({ where }),
+            prisma.leaveBalance.findMany({
+                where,
+                skip: page.skip,
+                take: page.limit,
+                include: { leaveType: true }
+            })
+        ])
 
-        return successResponse(res, 200, "Balance fetched successfully", balances)
+        return successResponse(res, 200, "Balance fetched successfully", balances, paginationHelper(req, totalData, balances.length).meta)
     } catch (error) {
         return errorResponse(res, 500, "Something went wrong", error.message)
     }

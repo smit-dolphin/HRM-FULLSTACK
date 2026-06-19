@@ -49,6 +49,27 @@ interface LeaveListResponse {
   success: boolean
   message: string
   data: Leave[]
+  meta?: {
+    totalData: number
+    totalPages: number
+    currentPage: number
+    itemPerPage: number
+  }
+}
+
+export interface FetchLeavesParams {
+  page?: number
+  limit?: number
+  search?: string
+  status?: '' | 'pending' | 'approved' | 'rejected' | 'cancelled'
+  from?: string
+  to?: string
+}
+
+function cleanParams(params: FetchLeavesParams) {
+  return Object.fromEntries(
+    Object.entries(params).filter(([, value]) => value !== '' && value !== undefined && value !== null)
+  )
 }
 
 export interface CreateLeavePayload {
@@ -59,13 +80,13 @@ export interface CreateLeavePayload {
 }
 
 // Leave requests
-export async function fetchAllLeavesService(): Promise<LeaveListResponse> {
-  const response = await baseApi.get<LeaveListResponse>('/leave')
+export async function fetchAllLeavesService(params: FetchLeavesParams = {}): Promise<LeaveListResponse> {
+  const response = await baseApi.get<LeaveListResponse>('/leave', { params: cleanParams(params) })
   return response.data
 }
 
-export async function fetchMyLeavesService(): Promise<LeaveListResponse> {
-  const response = await baseApi.get<LeaveListResponse>('/leave/my-leaves')
+export async function fetchMyLeavesService(params: FetchLeavesParams = {}): Promise<LeaveListResponse> {
+  const response = await baseApi.get<LeaveListResponse>('/leave/my-leaves', { params: cleanParams(params) })
   return response.data
 }
 

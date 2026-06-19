@@ -44,6 +44,21 @@ export interface EmployeeListResponse {
   };
 }
 
+export interface FetchEmployeesParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  isBlocked?: '' | 'true' | 'false';
+  from?: string;
+  to?: string;
+}
+
+function cleanParams(params: FetchEmployeesParams) {
+  return Object.fromEntries(
+    Object.entries(params).filter(([, value]) => value !== '' && value !== undefined && value !== null)
+  )
+}
+
 export interface CreateEmployeePayload {
   userId: string;
   departmentId: string;
@@ -68,16 +83,12 @@ export interface ApiResponse<T = unknown> {
  * Get all employees
  */
 export async function fetchEmployeesService(
-  page = 1,
-  limit = 100
+  params: FetchEmployeesParams = {}
 ): Promise<EmployeeListResponse> {
   const response = await baseApi.get<EmployeeListResponse>(
     "/employee",
     {
-      params: {
-        page,
-        limit,
-      },
+      params: cleanParams(params),
     }
   );
 

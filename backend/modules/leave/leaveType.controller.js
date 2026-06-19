@@ -1,12 +1,27 @@
 import prisma from "../../config/prisma.config.js"
 import errorResponse from "../../helper/errorResponse.js"
 import successResponse from "../../helper/successResponse.js"
+import { booleanFilter, searchHelper } from "../../helper/queryBuilder.js"
+import { paginationHelper } from "../../helper/paginationHelper.js"
 import { createLeaveTypeValidation, updateLeaveTypeValidation } from "./leaveValidation.schema.js";
 
 export const getLeaveTypes = async (req, res) => {
     try {
-        const leaveTypes = await prisma.leaveType.findMany({});
-        return successResponse(res, 200, "Leave types fetched successfully", leaveTypes);
+        const where = {}
+        searchHelper(where, req.query.search, ["name", "description"])
+        booleanFilter(where, "isPaid", req.query.isPaid)
+        booleanFilter(where, "requiresApproval", req.query.requiresApproval)
+        const page = paginationHelper(req)
+
+        const [totalData, leaveTypes] = await Promise.all([
+            prisma.leaveType.count({ where }),
+            prisma.leaveType.findMany({
+                where,
+                skip: page.skip,
+                take: page.limit
+            })
+        ])
+        return successResponse(res, 200, "Leave types fetched successfully", leaveTypes, paginationHelper(req, totalData, leaveTypes.length).meta);
     } catch (error) {
         return errorResponse(res, 500, "Something went wrong", error.message);
     }

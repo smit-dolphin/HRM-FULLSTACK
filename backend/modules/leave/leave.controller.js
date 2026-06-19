@@ -2,6 +2,9 @@ import prisma from "../../config/prisma.config.js"
 import errorResponse from "../../helper/errorResponse.js"
 import successResponse from "../../helper/successResponse.js"
 import { createLeaveValidate } from "./leaveValidation.schema.js"
+import { dateRangeFilter, enumFilter, searchHelper } from "../../helper/queryBuilder.js"
+import { LeaveStatus } from "@prisma/client"
+import { paginationHelper } from "../../helper/paginationHelper.js"
 
 // Calculate working days excluding weekends (basic implementation, no holiday table check yet for brevity, but we'll include weekends)
 function calculateWorkingDays(startDate, endDate) {
@@ -21,28 +24,39 @@ export async function getAllLeaves(req, res) {
         const employee = await prisma.employee.findUnique({ where: { userId: req.user.id } });
         if (!employee && req.user.role !== 'superadmin' && req.user.role !== 'admin') return errorResponse(res, 400, "Invalid employee", "Employee not found");
 
-        let filter = {};
+        const filter = {};
+        const { search, status, from, to } = req.query
 
         // If not superadmin/admin, restrict to subordinates
         if (req.user.role !== 'superadmin' && req.user.role !== 'admin') {
             filter.employee = { reportsToId: employee.id };
         }
 
-        const leaves = await prisma.leaveRequest.findMany({
-            where: filter,
-            include: {
-                employee: {
-                    include: {
-                        user: { select: { id: true, name: true, email: true } }
-                    }
-                },
-                leaveType: true,
-                histories: { include: { actionBy: { include: { user: { select: { name: true } } } } } }
-            },
-            orderBy: { createdAt: 'desc' }
-        });
+        searchHelper(filter, search, ["reason", "employee.user.name", "leaveType.name"])
+        enumFilter(filter, "status", status, LeaveStatus)
+        dateRangeFilter(filter, "createdAt", from, to)
+        const page = paginationHelper(req)
 
-        return successResponse(res, 200, "Leaves fetched successfully", leaves);
+        const [totalData, leaves] = await Promise.all([
+            prisma.leaveRequest.count({ where: filter }),
+            prisma.leaveRequest.findMany({
+                where: filter,
+                skip: page.skip,
+                take: page.limit,
+                include: {
+                    employee: {
+                        include: {
+                            user: { select: { id: true, name: true, email: true } }
+                        }
+                    },
+                    leaveType: true,
+                    histories: { include: { actionBy: { include: { user: { select: { name: true } } } } } }
+                },
+                orderBy: { createdAt: 'desc' }
+            })
+        ]);
+
+        return successResponse(res, 200, "Leaves fetched successfully", leaves, paginationHelper(req, totalData, leaves.length).meta);
     } catch (error) {
         return errorResponse(res, 500, "Something went wrong", error.message);
     }
@@ -53,16 +67,28 @@ export async function getMyLeaves(req, res) {
         const getemployee = await prisma.employee.findUnique({ where: { userId: req.user.id } });
         if (!getemployee) return errorResponse(res, 400, "Failed to fetch leaves", "Invalid employee id");
 
-        const leaves = await prisma.leaveRequest.findMany({
-            where: { employeeId: getemployee.id },
-            include: {
-                leaveType: true,
-                histories: { include: { actionBy: { include: { user: { select: { name: true } } } } } }
-            },
-            orderBy: { createdAt: 'desc' }
-        });
+        const filter = { employeeId: getemployee.id }
+        const { search, status, from, to } = req.query
+        searchHelper(filter, search, ["reason", "leaveType.name"])
+        enumFilter(filter, "status", status, LeaveStatus)
+        dateRangeFilter(filter, "createdAt", from, to)
+        const page = paginationHelper(req)
 
-        return successResponse(res, 200, "Leave fetched successfully", leaves);
+        const [totalData, leaves] = await Promise.all([
+            prisma.leaveRequest.count({ where: filter }),
+            prisma.leaveRequest.findMany({
+                where: filter,
+                skip: page.skip,
+                take: page.limit,
+                include: {
+                    leaveType: true,
+                    histories: { include: { actionBy: { include: { user: { select: { name: true } } } } } }
+                },
+                orderBy: { createdAt: 'desc' }
+            })
+        ]);
+
+        return successResponse(res, 200, "Leave fetched successfully", leaves, paginationHelper(req, totalData, leaves.length).meta);
     } catch (error) {
         return errorResponse(res, 500, "Something went wrong", error.message);
     }

@@ -1,13 +1,27 @@
 import prisma from "../../config/prisma.config.js"
 import errorResponse from "../../helper/errorResponse.js"
 import successResponse from "../../helper/successResponse.js"
+import { dateRangeFilter, searchHelper } from "../../helper/queryBuilder.js"
+import { paginationHelper } from "../../helper/paginationHelper.js"
 import { createHolidayValidation, updateHolidayValidation } from "./holidayValidation.schema.js"
 
 
 export const getAllHolidays = async (req, res) => {
     try {
-        const allholidays = await prisma.holiday.findMany({})
-        return successResponse(res, 200, "holidays fetched successfully", allholidays)
+        const where = {}
+        searchHelper(where, req.query.search, ["name"])
+        dateRangeFilter(where, "date", req.query.from, req.query.to)
+        const page = paginationHelper(req)
+
+        const [totalData, allholidays] = await Promise.all([
+            prisma.holiday.count({ where }),
+            prisma.holiday.findMany({
+                where,
+                skip: page.skip,
+                take: page.limit
+            })
+        ])
+        return successResponse(res, 200, "holidays fetched successfully", allholidays, paginationHelper(req, totalData, allholidays.length).meta)
 
     } catch (error) {
         return errorResponse(res, 500, "something went wrong", error.message)

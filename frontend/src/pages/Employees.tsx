@@ -1,7 +1,7 @@
 import React from 'react'
 import { createColumnHelper } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
-import { Download, Plus, ArrowUpDown } from 'lucide-react'
+import { Download, Plus, ArrowUpDown, ChevronLeft, ChevronRight, Search, Filter, X } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
@@ -11,6 +11,7 @@ import { DataTable } from '@/components/ui/DataTable'
 import { ActionMenu, type ActionMenuItem } from '@/components/ui/ActionMenu'
 import { exportToExcel } from '@/utils/exportToExcel'
 import { DialogForm, FormField, FormSelect, FormActions, FormInput } from '@/components/forms/DialogForm'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useAuthStore } from '@/store/useAuthStore'
 import {
   fetchEmployeesService,
@@ -19,6 +20,7 @@ import {
   deleteEmployeeService,
   toggleEmployeeBlockService,
   type Employee,
+  type FetchEmployeesParams,
 } from '@/services/employeeService/employeeService'
 import { fetchUsersService, type User } from '@/services/userService/userService'
 import { fetchDepartmentsService, type Department } from '@/services/departmentService/departmentService'
@@ -44,6 +46,18 @@ type EmployeeRow = {
 
 const columnHelper = createColumnHelper<EmployeeRow>()
 
+const statusOptions = [
+  { value: '', label: 'All Status' },
+  { value: 'false', label: 'Active' },
+  { value: 'true', label: 'Blocked' },
+]
+
+const limitOptions = [
+  { value: '5', label: '5 items' },
+  { value: '10', label: '10 items' },
+  { value: '20', label: '20 items' },
+]
+
 export function Employees() {
   const { hasPermission } = useAuthStore()
   const [data, setData] = React.useState<EmployeeRow[]>([])
@@ -51,6 +65,8 @@ export function Employees() {
   const [addOpen, setAddOpen] = React.useState(false)
   const [editOpen, setEditOpen] = React.useState(false)
   const [editingEmployee, setEditingEmployee] = React.useState<EmployeeRow | null>(null)
+  const [meta, setMeta] = React.useState<{ totalData: number; totalPages: number; currentPage: number; itemPerPage: number } | null>(null)
+  const [filtersOpen, setFiltersOpen] = React.useState(false)
 
   // Balance dialog
   const [balanceOpen, setBalanceOpen] = React.useState(false)
@@ -70,7 +86,15 @@ export function Employees() {
   const selectedCreateDeptId = createForm.watch('departmentId')
   const selectedEditDeptId = editForm.watch('departmentId')
 
-  // Filter designations for create form
+  const [query, setQuery] = React.useState<FetchEmployeesParams>({
+    page: 1,
+    limit: 5,
+    search: '',
+    isBlocked: '',
+    from: '',
+    to: '',
+  })
+
   React.useEffect(() => {
     if (selectedCreateDeptId) {
       const dept = departments.find(d => d.id === selectedCreateDeptId)
@@ -80,7 +104,6 @@ export function Employees() {
     }
   }, [selectedCreateDeptId, departments])
 
-  // Filter designations for edit form
   React.useEffect(() => {
     if (selectedEditDeptId) {
       const dept = departments.find(d => d.id === selectedEditDeptId)
@@ -90,10 +113,10 @@ export function Employees() {
     }
   }, [selectedEditDeptId, departments])
 
-  const loadEmployees = async () => {
+  const loadEmployees = async (params = query) => {
     try {
       setLoading(true)
-      const response = await fetchEmployeesService()
+      const response = await fetchEmployeesService(params)
       setData(response.data.map((emp: Employee) => ({
         id: emp.id,
         name: emp.user.name,
@@ -109,7 +132,8 @@ export function Employees() {
         managerId: emp.manager?.id,
         managerName: emp.manager?.user?.name,
       })))
-    } catch (error) {
+      setMeta(response.meta ?? null)
+    } catch {
       toast.error('Failed to fetch employees')
     } finally {
       setLoading(false)
@@ -119,17 +143,50 @@ export function Employees() {
   const loadFormOptions = async () => {
     try {
       const [usersRes, deptsRes] = await Promise.all([
-        fetchUsersService(1, 1000),
+        fetchUsersService({ page: 1, limit: 1000 }),
         fetchDepartmentsService(),
       ])
       setUsers(usersRes.data.map((u: User) => ({ value: u.id, label: `${u.name} (${u.email})` })))
       setDepartments(deptsRes.data)
-    } catch (error) {
+    } catch {
       toast.error('Failed to load form options')
     }
   }
 
-  React.useEffect(() => { loadEmployees() }, [])
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => {
+      loadEmployees(query)
+    }, query.search ? 350 : 0)
+
+    return () => window.clearTimeout(timer)
+  }, [query])
+
+  const setQueryValue = (key: keyof FetchEmployeesParams, value: string | number | undefined) => {
+    setQuery((prev) => ({
+      ...prev,
+      [key]: value,
+      page: key === 'page' ? Number(value) || 1 : 1,
+    }))
+  }
+
+  const clearFilter = (key: keyof FetchEmployeesParams) => {
+    setQuery((prev) => ({
+      ...prev,
+      [key]: '',
+      page: 1,
+    }))
+  }
+
+  const clearAllFilters = () => {
+    setQuery((prev) => ({
+      page: 1,
+      limit: prev.limit ?? 5,
+      search: '',
+      isBlocked: '',
+      from: '',
+      to: '',
+    }))
+  }
 
   const handleOpenAdd = () => {
     loadFormOptions()
@@ -148,7 +205,9 @@ export function Employees() {
     try {
       const res = await fetchBalanceByEmployeeService(row.id)
       if (res.success) setEmpBalance(res.data)
-    } catch { toast.error('Failed to load balance') }
+    } catch {
+      toast.error('Failed to load balance')
+    }
     setBalanceOpen(true)
   }
 
@@ -162,7 +221,9 @@ export function Employees() {
         if (refreshed.success) setEmpBalance(refreshed.data)
         setEditingBalance(null)
       }
-    } catch (error: any) { toast.error(error.response?.data?.message || 'Failed to update balance') }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to update balance')
+    }
   }
 
   const onCreateEmployee = async (formData: CreateEmployeeFormData) => {
@@ -172,7 +233,7 @@ export function Employees() {
         toast.success(res.message)
         setAddOpen(false)
         createForm.reset()
-        loadEmployees()
+        loadEmployees(query)
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to create employee')
@@ -188,7 +249,7 @@ export function Employees() {
         setEditOpen(false)
         editForm.reset()
         setEditingEmployee(null)
-        loadEmployees()
+        loadEmployees(query)
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to update employee')
@@ -200,7 +261,7 @@ export function Employees() {
       const res = await toggleEmployeeBlockService(row.id, !row.isBlocked)
       if (res.success) {
         toast.success(res.message)
-        loadEmployees()
+        loadEmployees(query)
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to update block status')
@@ -212,7 +273,7 @@ export function Employees() {
       const res = await deleteEmployeeService(id)
       if (res.success) {
         toast.success(res.message)
-        loadEmployees()
+        loadEmployees(query)
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to delete employee')
@@ -234,9 +295,9 @@ export function Employees() {
     columnHelper.accessor('reportsToId', {
       header: 'Manager',
       cell: (info) => {
-        const managerId = info.getValue();
-        const manager = data.find((emp) => emp.id === managerId);
-        return manager?.name ?? '—';
+        const managerId = info.getValue()
+        const manager = data.find((emp) => emp.id === managerId)
+        return manager?.name ?? '—'
       },
     }),
     columnHelper.accessor('status', {
@@ -266,6 +327,13 @@ export function Employees() {
     }),
   ]
 
+  const totalPages = meta?.totalPages ?? 1
+  const currentPage = meta?.currentPage ?? query.page ?? 1
+  const activeFilterCount = ['search', 'isBlocked', 'from', 'to'].filter((key) => {
+    const value = query[key as keyof FetchEmployeesParams]
+    return value !== '' && value !== undefined && value !== null
+  }).length
+
   return (
     <div className="space-y-6">
       <PageHeader title="Employees" subtitle="Manage your organization's employees.">
@@ -279,15 +347,136 @@ export function Employees() {
         )}
       </PageHeader>
 
+      <div className="rounded-2xl border bg-card p-4 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={query.search ?? ''}
+              onChange={(e) => setQueryValue('search', e.target.value)}
+              placeholder="Search employees by name, email, department..."
+              className="h-12 w-full rounded-xl border border-input bg-background pl-10 pr-4 text-sm outline-none transition focus:border-primary"
+            />
+          </div>
+
+          <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="h-12 min-w-40 justify-between rounded-xl border-dashed px-4">
+                <span className="flex items-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  Filters
+                </span>
+                <span className="flex items-center gap-2">
+                  {activeFilterCount > 0 && (
+                    <span className="rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                  <span className="text-xs text-muted-foreground">{filtersOpen ? 'Close' : 'Open'}</span>
+                </span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[520px] p-4" align="end">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Employee Filters</p>
+                    <p className="text-sm text-muted-foreground">Refine the list with server-side filters.</p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={clearAllFilters} className="gap-1">
+                    <X className="h-4 w-4" />
+                    Clear all
+                  </Button>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <FormSelect
+                    value={query.isBlocked ?? ''}
+                    onChange={(e) => setQueryValue('isBlocked', e.target.value)}
+                    options={statusOptions}
+                    placeholder="Status"
+                  />
+                  <FormInput
+                    type="date"
+                    value={query.from ?? ''}
+                    onChange={(e) => setQueryValue('from', e.target.value)}
+                    placeholder="From"
+                  />
+                  <FormInput
+                    type="date"
+                    value={query.to ?? ''}
+                    onChange={(e) => setQueryValue('to', e.target.value)}
+                    placeholder="To"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <p className="text-muted-foreground">Only non-empty values are sent to the API.</p>
+                  <div className="flex gap-2">
+                    {query.isBlocked && (
+                      <Button variant="outline" size="sm" onClick={() => clearFilter('isBlocked')}>Clear status</Button>
+                    )}
+                    {(query.from || query.to) && (
+                      <Button variant="outline" size="sm" onClick={() => { clearFilter('from'); clearFilter('to') }}>
+                        Clear dates
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          <div className="flex items-center gap-3 lg:ml-auto">
+            <FormSelect
+              value={String(query.limit ?? 5)}
+              onChange={(e) => setQueryValue('limit', Number(e.target.value))}
+              options={limitOptions}
+              placeholder="Items per page"
+              className="w-40"
+            />
+            <Button variant="outline" onClick={clearAllFilters} className="h-12 rounded-xl px-5">
+              Reset
+            </Button>
+          </div>
+        </div>
+      </div>
+
       <DataTable
         data={data}
         columns={columns}
         loading={loading}
-        searchPlaceholder="Search employees..."
+        searchable={false}
         emptyMessage="No employees found."
       />
 
-      {/* Add Employee Dialog */}
+      <div className="flex flex-col gap-3 rounded-xl border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">
+          Showing page {currentPage} of {totalPages}
+          {meta ? ` · ${meta.totalData} total employees` : ''}
+        </p>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setQueryValue('page', Math.max(1, currentPage - 1))}
+            disabled={currentPage <= 1 || loading}
+          >
+            <ChevronLeft className="mr-1 h-4 w-4" />
+            Prev
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setQueryValue('page', Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage >= totalPages || loading}
+          >
+            Next
+            <ChevronRight className="ml-1 h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
       <DialogForm open={addOpen} onClose={() => { setAddOpen(false); createForm.reset() }} title="Add Employee" subtitle="Assign a user as an employee">
         <form onSubmit={createForm.handleSubmit(onCreateEmployee)}>
           <div className="space-y-4">
@@ -308,7 +497,6 @@ export function Employees() {
         </form>
       </DialogForm>
 
-      {/* Edit Employee Dialog */}
       <DialogForm open={editOpen} onClose={() => { setEditOpen(false); editForm.reset(); setEditingEmployee(null) }} title="Edit Employee" subtitle={`Editing ${editingEmployee?.name ?? ''}`}>
         <form onSubmit={editForm.handleSubmit(onUpdateEmployee)}>
           <div className="space-y-4">
@@ -326,7 +514,6 @@ export function Employees() {
         </form>
       </DialogForm>
 
-      {/* Manage Balance Dialog */}
       <DialogForm open={balanceOpen} onClose={() => { setBalanceOpen(false); setBalanceEmployee(null); setEmpBalance([]); setEditingBalance(null) }} title="Manage Leave Balance" subtitle={balanceEmployee?.name ?? ''}>
         <div className="space-y-3">
           {empBalance.length === 0 && <p className="text-sm text-muted-foreground">No balance records found.</p>}
@@ -342,7 +529,7 @@ export function Employees() {
                 <div className="flex items-center gap-2">
                   <FormInput
                     type="number"
-                    className="w-20 h-8"
+                    className="h-8 w-20"
                     defaultValue={b.allocated}
                     onChange={(e) => setEditingBalance({ leaveTypeId: b.leaveTypeId, allocated: Number(e.target.value) })}
                   />

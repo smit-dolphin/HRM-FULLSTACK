@@ -33,24 +33,24 @@ const router = Router()
 
 
 // Leave balance (before /:id routes to avoid conflicts)
-router.get('/balance/my', authenticatUser, autherize('leave:view'), getMyBalance)
+router.get('/balance/my', authenticatUser, autherize('leave:balance:view_own'), getMyBalance)
 router.get('/balance/:employeeId', authenticatUser, autherize('leave:balance:view'), getBalanceByEmployee)
 router.patch('/balance/:employeeId', authenticatUser, autherize('leave:balance:edit'), updateBalance)
-router.post('/balance/allocate', authenticatUser, autherize('leave:balance:edit'), bulkAllocateBalance)
+router.post('/balance/allocate', authenticatUser, autherize('leave:balance:allocate'), bulkAllocateBalance)
 
 // Leave types
-router.get('/type', authenticatUser, autherize('leave:view'), getLeaveTypes)
-router.post('/type', authenticatUser, autherize('leave:type:manage'), createLeaveType)
+router.get('/type', authenticatUser, autherize('leave:type:view'), getLeaveTypes)
+router.post('/type', authenticatUser, autherize('leave:type:create'), createLeaveType)
 router.patch('/type/:id', authenticatUser, autherize('leave:type:edit'), updateLeaveType)
 router.delete('/type/:id', authenticatUser, autherize('leave:type:delete'), deleteLeaveType)
     
 // Leave requests
-router.get('/my-leaves', authenticatUser, autherize('leave:view'), getMyLeaves)
-router.get('/', authenticatUser, autherize('leave:approve'), getAllLeaves)
-router.get('/:id', authenticatUser, autherize('leave:view'), getLeavesById)
-router.post('/', authenticatUser, autherize('leave:create'), createLeave)
-router.post('/:id/cancel', authenticatUser, autherize('leave:create'), cancelLeave)
-router.patch('/:id', authenticatUser, autherize('leave:approve'), updateStatusLeave)
-router.delete('/:id', authenticatUser, autherize('leave:delete'), deleteLeave)
+router.get('/my-leaves', authenticatUser, autherize('leave:request:view_own'), getMyLeaves)
+router.get('/', authenticatUser, autherize('leave:request:view'), getAllLeaves)//all leaves panding to approve
+router.get('/:id', authenticatUser, autherize('leave:request:view'), getLeavesById)
+router.post('/', authenticatUser, autherize('leave:request:create'), createLeave)
+router.post('/:id/cancel', authenticatUser, autherize('leave:request:cancel'), cancelLeave)
+router.patch('/:id', authenticatUser, autherize('leave:request:approve'), updateStatusLeave)
+router.delete('/:id', authenticatUser, autherize('leave:request:delete'), deleteLeave)
 
 export const leaveRouter = router

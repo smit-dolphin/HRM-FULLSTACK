@@ -14,8 +14,8 @@ const router = Router()
 // edit the permissions 
 // get permission to user tats it 
 
-router.get('/permissions',authenticatUser, getAllPermissions)
-router.get('/:userId',authenticatUser,getPermissionByUserId)
-router.patch('/:userId',authenticatUser,updatePermission)
+router.get('/permissions',authenticatUser,autherize('admin:permission:view'), getAllPermissions)
+router.get('/:userId',authenticatUser,autherize('admin:permission:view'),getPermissionByUserId)
+router.patch('/:userId',authenticatUser,autherize('admin:permission:edit'),updatePermission)
 
 export const permissionRouter=router

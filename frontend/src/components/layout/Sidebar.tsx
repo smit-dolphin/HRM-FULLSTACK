@@ -9,6 +9,7 @@ import {
   LogOut,
   BriefcaseBusiness,
   Building2,
+  CalendarRange,
   X,
   Moon,
   Sun,
@@ -23,7 +24,8 @@ const navItems: { icon: any; label: string; path: string; permission?: string }[
   { icon: UserRound, label: 'Users', path: '/users', permission: 'user:view' },
   { icon: Users, label: 'Employees', path: '/employees', permission: 'employee:view' },
   { icon: Building2, label: 'Departments', path: '/departments', permission: 'department:view' },
-  { icon: CalendarDays, label: 'Leaves', path: '/leaves', permission: 'leave:view' },
+  { icon: CalendarDays, label: 'Leaves', path: '/leaves', permission: 'leave:request:view' },
+  { icon: CalendarRange, label: 'Holidays', path: '/holidays', permission: 'holiday:view' },
   { icon: Settings, label: 'Settings', path: '/settings', permission: 'leave:type:manage' },
 ];
 

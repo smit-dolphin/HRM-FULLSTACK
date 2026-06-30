@@ -97,6 +97,19 @@ export async function getMyLeaves(req, res) {
 export async function getLeavesById(req, res) {
     try {
         const { id } = req.params;
+        // if(req.user.role!=="superadmin" || req.user.role!=="admin"||req.user.role!=="manager"){
+
+        //     const leave = await prisma.leaveRequest.findUnique({
+        //     where: { id },
+        //     include: {
+        //         employee: { include: { user: { select: { id: true, name: true, email: true } } } },
+        //         leaveType: true,
+        //         histories: { include: { actionBy: { include: { user: { select: { name: true } } } } } }
+        //     }
+        // });
+        //  return successResponse(res, 200, "Leave status fetched successfully", leave);
+
+        // }
         const leave = await prisma.leaveRequest.findUnique({
             where: { id },
             include: {
@@ -106,11 +119,33 @@ export async function getLeavesById(req, res) {
             }
         });
         if (!leave) return errorResponse(res, 404, "Leave does not exist", "Invalid leave id");
+
         return successResponse(res, 200, "Leave status fetched successfully", leave);
     } catch (error) {
         return errorResponse(res, 500, "Something went wrong", error.message);
     }
 }
+
+// export async function getLeaveByEmployeeId(req,res){
+//     try {
+//         const { employeeId } = req.params;
+
+//         const leave = await prisma.leaveRequest.findUnique({
+//             where: { employeeId },
+//             include: {
+//                 employee: { include: { user: { select: { id: true, name: true, email: true } } } },
+//                 leaveType: true,
+//                 histories: { include: { actionBy: { include: { user: { select: { name: true } } } } } }
+//             }
+//         });
+//         if (!leave) return errorResponse(res, 404, "Leave does not exist", "Invalid leave id");
+
+//         return successResponse(res, 200, "Leave status fetched successfully", leave);
+//     } catch (error) {
+//         return errorResponse(res, 500, "Something went wrong", error.message);
+//     }
+// }
+
 
 export async function createLeave(req, res) {
     try {

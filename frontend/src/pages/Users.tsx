@@ -14,6 +14,7 @@ import { exportToExcel } from '@/utils/exportToExcel'
 import { DialogForm, FormField, FormInput, FormSelect, FormActions } from '@/components/forms/DialogForm'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useAuthStore } from '@/store/useAuthStore'
+import { useQuery } from '@tanstack/react-query'
 import {
   fetchUsersService,
   createUserService,
@@ -61,12 +62,9 @@ const limitOptions = [
 export function Users() {
   const navigate = useNavigate()
   const { hasPermission } = useAuthStore()
-  const [data, setData] = React.useState<UserRow[]>([])
-  const [loading, setLoading] = React.useState(true)
   const [addOpen, setAddOpen] = React.useState(false)
   const [editOpen, setEditOpen] = React.useState(false)
   const [editingUser, setEditingUser] = React.useState<UserRow | null>(null)
-  const [meta, setMeta] = React.useState<{ totalData: number; totalPages: number; currentPage: number; itemPerPage: number } | null>(null)
   const [filtersOpen, setFiltersOpen] = React.useState(false)
 
   const [query, setQuery] = React.useState<FetchUsersParams>({
@@ -82,34 +80,24 @@ export function Users() {
   const createForm = useForm<CreateUserFormData>({ resolver: zodResolver(createUserSchema) })
   const editForm = useForm<UpdateUserFormData>({ resolver: zodResolver(updateUserSchema) })
 
-  const loadUsers = async (params = query) => {
-    try {
-      setLoading(true)
-      const response = await fetchUsersService(params)
-      setData(response.data.map((user: User) => ({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        isActive: user.isActive,
-        status: user.isActive ? 'Active' : 'Inactive',
-        createdAt: user.createdAt,
-      })))
-      setMeta(response.meta ?? null)
-    } catch {
-      toast.error('Failed to fetch users')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const usersQuery = useQuery({
+    queryKey: ['users', query],
+    queryFn: () => fetchUsersService(query),
+    placeholderData: (previousData) => previousData,
+  })
 
-  React.useEffect(() => {
-    const timer = window.setTimeout(() => {
-      loadUsers(query)
-    }, query.search ? 350 : 0)
+  const users = usersQuery.data?.data.map((user: User) => ({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    isActive: user.isActive,
+    status: user.isActive ? 'Active' : 'Inactive',
+    createdAt: user.createdAt,
+  })) ?? []
 
-    return () => window.clearTimeout(timer)
-  }, [query])
+  const meta = usersQuery.data?.meta ?? null
+  const loading = usersQuery.isPending || usersQuery.isFetching
 
   const setQueryValue = (key: keyof FetchUsersParams, value: string | number | undefined) => {
     setQuery((prev) => ({
@@ -152,7 +140,6 @@ export function Users() {
         toast.success(res.message)
         setAddOpen(false)
         createForm.reset()
-        loadUsers(query)
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to create user')
@@ -168,7 +155,6 @@ export function Users() {
         setEditOpen(false)
         editForm.reset()
         setEditingUser(null)
-        loadUsers(query)
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to update user')
@@ -180,7 +166,6 @@ export function Users() {
       const res = await deactivateUserService(id)
       if (res.success) {
         toast.success(res.message)
-        loadUsers(query)
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to deactivate user')
@@ -192,7 +177,6 @@ export function Users() {
       const res = await deleteUserService(id)
       if (res.success) {
         toast.success(res.message)
-        loadUsers(query)
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to delete user')
@@ -247,7 +231,7 @@ export function Users() {
   return (
     <div className="space-y-6">
       <PageHeader title="Users" subtitle="Manage application users and access.">
-        <Button variant="outline" onClick={() => exportToExcel({ data, sheetName: 'Users' })} disabled={!data.length}>
+        <Button variant="outline" onClick={() => exportToExcel({ data: users, sheetName: 'Users' })} disabled={!users.length}>
           <Download className="mr-2 h-4 w-4" /> Export
         </Button>
         {hasPermission('user:create') && (
@@ -349,7 +333,7 @@ export function Users() {
       </div>
 
       <DataTable
-        data={data}
+        data={users}
         columns={columns}
         loading={loading}
         searchable={false}

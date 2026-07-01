@@ -5,6 +5,8 @@ import { createLeaveValidate } from "./leaveValidation.schema.js"
 import { dateRangeFilter, enumFilter, searchHelper } from "../../helper/queryBuilder.js"
 import { LeaveStatus } from "@prisma/client"
 import { paginationHelper } from "../../helper/paginationHelper.js"
+import { canManageRole } from "../../helper/higherarchiValidator.js"
+
 
 // Calculate working days excluding weekends (basic implementation, no holiday table check yet for brevity, but we'll include weekends)
 function calculateWorkingDays(startDate, endDate) {
@@ -19,17 +21,49 @@ function calculateWorkingDays(startDate, endDate) {
     return count;
 }
 
+
+
 export async function getAllLeaves(req, res) {
     try {
         const employee = await prisma.employee.findUnique({ where: { userId: req.user.id } });
-        if (!employee && req.user.role !== 'superadmin' && req.user.role !== 'admin') return errorResponse(res, 400, "Invalid employee", "Employee not found");
-
+        
+        // Ensure non-superadmins have an employee profile
+        if (!employee && req.user.role !== 'superadmin') {
+            return errorResponse(res, 400, "Invalid employee", "Employee profile not found");
+        }
+        
         const filter = {};
-        const { search, status, from, to } = req.query
+        const { search, status, from, to } = req.query;
 
-        // If not superadmin/admin, restrict to subordinates
+        // Apply filters based on role hierarchy
         if (req.user.role !== 'superadmin' && req.user.role !== 'admin') {
-            filter.employee = { reportsToId: employee.id };
+            if (req.user.role === 'manager') {
+                filter.employee = {
+                    userId: { not: req.user.id },
+                    user: {
+                        role: {
+                            in: ['manager', 'teamleader', 'employee']
+                        }
+                    }
+                };
+            } else if (req.user.role === 'teamleader') {
+                filter.employee = {
+                    reportsToId: employee.id,
+                    userId: { not: req.user.id },
+                    user: {
+                        role: {
+                            in: ['teamleader', 'employee']
+                        }
+                    }
+                };
+            } else {
+                return errorResponse(res, 403, "Forbidden", "You are not authorized to view all leaves");
+            }
+        } else {
+            // Admin and Superadmin see all leaves, but exclude their own leaves from the list
+            filter.employee = {
+                userId: { not: req.user.id }
+            };
         }
 
         searchHelper(filter, search, ["reason", "employee.user.name", "leaveType.name"])
@@ -228,7 +262,11 @@ export async function updateStatusLeave(req, res) {
         const userId = req.user.id;
 
         const actionEmployee = await prisma.employee.findUnique({ where: { userId } });
-        if (!actionEmployee && req.user.role!=="superadmin" && req.user.role!=="admin") return errorResponse(res, 400, "Invalid employee", "Invalid employee id");
+        
+        // Ensure non-superadmins have an employee profile
+        if (!actionEmployee && req.user.role !== 'superadmin') {
+            return errorResponse(res, 400, "Invalid employee", "Employee profile not found");
+        }
 
         if (!['approved', 'rejected', 'cancelled'].includes(status)) {
             return errorResponse(res, 400, "Invalid status", "Enter valid status");
@@ -236,14 +274,35 @@ export async function updateStatusLeave(req, res) {
 
         const leave = await prisma.leaveRequest.findUnique({
             where: { id },
-            include: { employee: true }
+            include: { employee: { include: { user: true } } }
         });
 
         if (!leave) return errorResponse(res, 404, "Leave does not exist", "Invalid leave id");
 
-        // Check hierarchy! Can only approve if actionEmployee is the reportsToId or superadmin
-        if (req.user.role !== 'superadmin' && req.user.role !== 'admin'  && leave.employee.reportsToId !== actionEmployee.id) {
-            return errorResponse(res, 403, "Forbidden", "You are not authorized to approve this leave");
+        // 1. Prevent self-approval
+        if (actionEmployee && leave.employeeId === actionEmployee.id) {
+            return errorResponse(res, 400, "Forbidden", "You cannot approve or reject your own leave request");
+        }
+
+        // 2. Validate hierarchy permissions
+        let isAuthorized = false;
+
+        if (req.user.role === 'superadmin' || req.user.role === 'admin') {
+            isAuthorized = true; // Global bypass
+        } else if (req.user.role === 'manager' && actionEmployee) {
+            // Managers can approve if target role has equal/higher hierarchy standing (i.e. manager, teamleader, employee)
+            const targetRole = leave.employee.user.role;
+            const canManage = canManageRole(targetRole, req.user.role);
+            isAuthorized = canManage;
+        } else if (req.user.role === 'teamleader' && actionEmployee) {
+            // Team leaders can approve if the employee reports to them AND they have equal/higher hierarchy standing
+            const targetRole = leave.employee.user.role;
+            const canManage = canManageRole(targetRole, req.user.role);
+            isAuthorized = leave.employee.reportsToId === actionEmployee.id && canManage;
+        }
+
+        if (!isAuthorized) {
+            return errorResponse(res, 403, "Forbidden", "You are not authorized to approve this leave request");
         }
 
         if (leave.status !== 'pending') {

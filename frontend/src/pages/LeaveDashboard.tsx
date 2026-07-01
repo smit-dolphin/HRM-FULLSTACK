@@ -41,13 +41,14 @@ const columnHelper = createColumnHelper<LeaveRow>()
 
 export function LeaveDashboard() {
   const { hasPermission, user } = useAuthStore()
-  const canApprove = hasPermission('leave:approve')
-  const canCreate = hasPermission('leave:create')
-  const canDelete = hasPermission('leave:delete')
+  const isSuperAdmin = user?.role === 'superadmin'
+  const canApprove = hasPermission('leave:request:approve')
+  const canCreate = hasPermission('leave:request:create')
+  const canDelete = hasPermission('leave:request:delete')
 
   const [data, setData] = React.useState<LeaveRow[]>([])
   const [loading, setLoading] = React.useState(true)
-  const [viewAll, setViewAll] = React.useState(false)
+  const [viewAll, setViewAll] = React.useState(isSuperAdmin)
   const [addOpen, setAddOpen] = React.useState(false)
   const [leaveTypeOptions, setLeaveTypeOptions] = React.useState<{ value: string; label: string }[]>([])
 
@@ -69,7 +70,7 @@ export function LeaveDashboard() {
   const loadLeaves = async () => {
     try {
       setLoading(true)
-      const response = viewAll && canApprove ? await fetchAllLeavesService() : await fetchMyLeavesService()
+      const response = (viewAll || isSuperAdmin) && canApprove ? await fetchAllLeavesService() : await fetchMyLeavesService()
       setData(response.data.map((leave: Leave) => ({
         id: leave.id,
         employeeName: leave.employee?.user?.name ?? 'You',
@@ -95,7 +96,15 @@ export function LeaveDashboard() {
   }
 
   React.useEffect(() => { loadLeaves() }, [viewAll])
-  React.useEffect(() => { loadMyBalance() }, [])
+  
+  React.useEffect(() => {
+    if (!isSuperAdmin) {
+      loadMyBalance()
+    } else {
+      setBalanceLoading(false)
+      setViewAll(true)
+    }
+  }, [isSuperAdmin])
 
   const handleOpenAdd = () => { loadLeaveTypes(); setAddOpen(true) }
 
@@ -163,12 +172,12 @@ export function LeaveDashboard() {
   return (
     <div className="space-y-6">
       <PageHeader title="Leave Management" subtitle="Request, view and manage leaves.">
-        {canApprove && (
+        {canApprove && !isSuperAdmin && (
           <Button variant="outline" onClick={() => setViewAll(prev => !prev)}>
             {viewAll ? 'My Leaves' : 'All Leaves'}
           </Button>
         )}
-        {canCreate && (
+        {canCreate && !isSuperAdmin && (
           <Button onClick={handleOpenAdd}>
             <Plus className="mr-2 h-4 w-4" /> Request Leave
           </Button>
@@ -176,7 +185,7 @@ export function LeaveDashboard() {
       </PageHeader>
 
       {/* My Balance Cards */}
-      {!balanceLoading && myBalance.length > 0 && (
+      {!balanceLoading && !isSuperAdmin && myBalance.length > 0 && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {myBalance.map(b => (
             <Card key={b.id}>

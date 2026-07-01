@@ -27,6 +27,8 @@ import { fetchDepartmentsService, type Department } from '@/services/departmentS
 import { fetchBalanceByEmployeeService, type LeaveBalance } from '@/services/leaveService/leaveService'
 import baseApi from '@/api/baseApi'
 import { createEmployeeSchema, updateEmployeeSchema, type CreateEmployeeFormData, type UpdateEmployeeFormData } from '@/schemas/employee.schema'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { querryClient } from '@/querryOptions/querryClinets'
 
 type EmployeeRow = {
   id: string
@@ -60,23 +62,16 @@ const limitOptions = [
 
 export function Employees() {
   const { hasPermission } = useAuthStore()
-  const [data, setData] = React.useState<EmployeeRow[]>([])
-  const [loading, setLoading] = React.useState(true)
   const [addOpen, setAddOpen] = React.useState(false)
   const [editOpen, setEditOpen] = React.useState(false)
   const [editingEmployee, setEditingEmployee] = React.useState<EmployeeRow | null>(null)
-  const [meta, setMeta] = React.useState<{ totalData: number; totalPages: number; currentPage: number; itemPerPage: number } | null>(null)
   const [filtersOpen, setFiltersOpen] = React.useState(false)
 
   // Balance dialog
   const [balanceOpen, setBalanceOpen] = React.useState(false)
   const [balanceEmployee, setBalanceEmployee] = React.useState<EmployeeRow | null>(null)
-  const [empBalance, setEmpBalance] = React.useState<LeaveBalance[]>([])
   const [editingBalance, setEditingBalance] = React.useState<{ leaveTypeId: string; allocated: number } | null>(null)
 
-  // Dropdown options
-  const [users, setUsers] = React.useState<{ value: string; label: string }[]>([])
-  const [departments, setDepartments] = React.useState<Department[]>([])
   const [createDesigOptions, setCreateDesigOptions] = React.useState<{ value: string; label: string }[]>([])
   const [editDesigOptions, setEditDesigOptions] = React.useState<{ value: string; label: string }[]>([])
 
@@ -94,6 +89,49 @@ export function Employees() {
     from: '',
     to: '',
   })
+
+  const fetchEmployeeQuerry = useQuery({
+    queryKey: ['employees',  query],
+    queryFn: () => fetchEmployeesService(query),
+  })
+  const data = fetchEmployeeQuerry.data?.data.map((emp) => ({
+    id: emp.id,
+    name: emp.user.name,
+    email: emp.user.email,
+
+    departmentId: emp.departmentId,
+    designationId: emp.designationId,
+
+    departmentName: emp.department?.name ?? emp.departmentId,
+    designationName: emp.designation?.name ?? emp.designationId,
+
+    isBlocked: emp.isBlocked,
+    status: emp.isBlocked ? "Blocked" : "Active",
+
+    createdAt: emp.user.createdAt,
+
+    reportsToId: emp.reportsToId,
+
+    managerId: emp.manager?.id,
+    managerName: emp.manager?.user?.name,
+  })) ?? [];
+
+  console.log(data)
+  const meta = fetchEmployeeQuerry.data?.meta || null
+  const { isLoading, isFetching, error } = fetchEmployeeQuerry
+
+  const usersQuery = useQuery({
+    queryKey: ["users"],
+    queryFn: () => fetchUsersService({ page: 1, limit: 1000 }),
+  });
+
+  const departmentsQuery = useQuery({
+    queryKey: ["departments"],
+    queryFn: fetchDepartmentsService,
+  });
+
+  const users = usersQuery.data?.data.map((d) => ({ value: d.id, label: `${d.name} (${d.email})` })) || []
+  const departments = departmentsQuery.data?.data || []
 
   React.useEffect(() => {
     if (selectedCreateDeptId) {
@@ -113,53 +151,6 @@ export function Employees() {
     }
   }, [selectedEditDeptId, departments])
 
-  const loadEmployees = async (params = query) => {
-    try {
-      setLoading(true)
-      const response = await fetchEmployeesService(params)
-      setData(response.data.map((emp: Employee) => ({
-        id: emp.id,
-        name: emp.user.name,
-        email: emp.user.email,
-        departmentId: emp.departmentId,
-        designationId: emp.designationId,
-        departmentName: emp.department?.name ?? emp.departmentId,
-        designationName: emp.designation?.name ?? emp.designationId,
-        isBlocked: emp.isBlocked,
-        status: emp.isBlocked ? 'Blocked' : 'Active',
-        createdAt: emp.user.createdAt,
-        reportsToId: emp.reportsToId,
-        managerId: emp.manager?.id,
-        managerName: emp.manager?.user?.name,
-      })))
-      setMeta(response.meta ?? null)
-    } catch {
-      toast.error('Failed to fetch employees')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const loadFormOptions = async () => {
-    try {
-      const [usersRes, deptsRes] = await Promise.all([
-        fetchUsersService({ page: 1, limit: 1000 }),
-        fetchDepartmentsService(),
-      ])
-      setUsers(usersRes.data.map((u: User) => ({ value: u.id, label: `${u.name} (${u.email})` })))
-      setDepartments(deptsRes.data)
-    } catch {
-      toast.error('Failed to load form options')
-    }
-  }
-
-  React.useEffect(() => {
-    const timer = window.setTimeout(() => {
-      loadEmployees(query)
-    }, query.search ? 350 : 0)
-
-    return () => window.clearTimeout(timer)
-  }, [query])
 
   const setQueryValue = (key: keyof FetchEmployeesParams, value: string | number | undefined) => {
     setQuery((prev) => ({
@@ -189,95 +180,134 @@ export function Employees() {
   }
 
   const handleOpenAdd = () => {
-    loadFormOptions()
+    // loadFormOptions()
     setAddOpen(true)
   }
 
   const handleOpenEdit = (row: EmployeeRow) => {
-    loadFormOptions()
+    // loadFormOptions()
     setEditingEmployee(row)
     editForm.reset({ departmentId: row.departmentId, designationId: row.designationId, reportsToId: row.reportsToId })
     setEditOpen(true)
   }
 
-  const handleOpenBalance = async (row: EmployeeRow) => {
+  const getLeaveBalance = useQuery({
+    queryKey: ["leaveBalance", balanceEmployee?.id],
+    queryFn: () => fetchBalanceByEmployeeService(balanceEmployee!.id),
+    enabled: !!balanceEmployee?.id,
+  })
+
+  const empBalance = getLeaveBalance.data?.data
+
+  const handleOpenBalance = (row: EmployeeRow) => {
     setBalanceEmployee(row)
-    try {
-      const res = await fetchBalanceByEmployeeService(row.id)
-      if (res.success) setEmpBalance(res.data)
-    } catch {
-      toast.error('Failed to load balance')
-    }
     setBalanceOpen(true)
   }
 
-  const handleSaveBalance = async () => {
-    if (!balanceEmployee || !editingBalance) return
-    try {
-      const res = await baseApi.patch(`/leave/balance/${balanceEmployee.id}`, editingBalance)
-      if (res.data.success) {
-        toast.success('Balance updated')
-        const refreshed = await fetchBalanceByEmployeeService(balanceEmployee.id)
-        if (refreshed.success) setEmpBalance(refreshed.data)
-        setEditingBalance(null)
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to update balance')
+  const saveBalanceMutation=useMutation({
+    mutationFn: ({ id, balance }: { id: string; balance: { leaveTypeId: string; allocated: number } }) =>
+      baseApi.patch(`/leave/balance/${id}`, balance),
+    onSuccess: () => {
+      toast.success('Balance updated')
+      querryClient.invalidateQueries({
+        queryKey: ["leaveBalance", balanceEmployee?.id],
+      });
+      setEditingBalance(null)
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to update balance')
     }
   }
+  )
+
+  const handleSaveBalance = async () => {
+    if (!balanceEmployee || !editingBalance) return
+    saveBalanceMutation.mutate({ id: balanceEmployee.id, balance: editingBalance })
+  }
+
+  const createEmployeeMutation = useMutation({
+    mutationFn: createEmployeeService,
+    onSuccess: () => {
+      toast.success("Employee created successfully")
+      setAddOpen(false)
+      createForm.reset()
+      querryClient.invalidateQueries({
+        queryKey: ["employees"],
+      });
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to update employee')
+    }
+  })
+
+  const updateEmployeeMutation = useMutation({
+    mutationFn: ({
+      id,
+      formData,
+    }: {
+      id: string;
+      formData: UpdateEmployeeFormData;
+    }) => updateEmployeeService(id, formData),
+    onSuccess: () => {
+      toast.success("Employee updated successfully")
+      setEditOpen(false)
+      querryClient.invalidateQueries({
+        queryKey: ["employees"],
+      });
+      setEditingEmployee(null)
+    },
+    onError: (error) => {
+      toast.error(error?.message || 'Failed to update employee')
+    }
+  })
+
+  const toggleBlockMutation = useMutation({
+    mutationFn: ({ id, isempBlocked }: { id: string, isempBlocked: boolean }) => toggleEmployeeBlockService(id, isempBlocked),
+    onSuccess: () => {
+      toast.success("Block status updated successfully")
+      querryClient.invalidateQueries({
+        queryKey: ["employees"],
+      });
+    },
+    onError: (error) => {
+      toast.error(error?.message || 'Failed to update block status')
+    }
+  })
+
+  const deleteEmployeeMutation = useMutation({
+    mutationFn: deleteEmployeeService,
+    onSuccess: () => {
+      toast.success("Employee deleted successfully")
+      querryClient.invalidateQueries({
+        queryKey: ["employees"],
+      });
+    },
+    onError: (error) => {
+      toast.error(error?.message || 'Failed to delete employee')
+    }
+  })
 
   const onCreateEmployee = async (formData: CreateEmployeeFormData) => {
-    try {
-      const res = await createEmployeeService(formData)
-      if (res.success) {
-        toast.success(res.message)
-        setAddOpen(false)
-        createForm.reset()
-        loadEmployees(query)
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to create employee')
-    }
+    createEmployeeMutation.mutate(formData)
   }
 
   const onUpdateEmployee = async (formData: UpdateEmployeeFormData) => {
+
+
     if (!editingEmployee) return
-    try {
-      const res = await updateEmployeeService(editingEmployee.id, formData)
-      if (res.success) {
-        toast.success(res.message)
-        setEditOpen(false)
-        editForm.reset()
-        setEditingEmployee(null)
-        loadEmployees(query)
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to update employee')
-    }
+    updateEmployeeMutation.mutate({ id: editingEmployee.id, formData })
+
   }
 
   const handleToggleBlock = async (row: EmployeeRow) => {
-    try {
-      const res = await toggleEmployeeBlockService(row.id, !row.isBlocked)
-      if (res.success) {
-        toast.success(res.message)
-        loadEmployees(query)
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to update block status')
-    }
+
+    toggleBlockMutation.mutate({ id: row.id, isempBlocked: !row.isBlocked })
+    // const res = await toggleEmployeeBlockService(row.id, !row.isBlocked)
+
   }
 
   const handleDelete = async (id: string) => {
-    try {
-      const res = await deleteEmployeeService(id)
-      if (res.success) {
-        toast.success(res.message)
-        loadEmployees(query)
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to delete employee')
-    }
+    deleteEmployeeMutation.mutate(id)
   }
 
   const columns = [
@@ -445,7 +475,7 @@ export function Employees() {
       <DataTable
         data={data}
         columns={columns}
-        loading={loading}
+        loading={isLoading}
         searchable={false}
         emptyMessage="No employees found."
       />
@@ -460,7 +490,7 @@ export function Employees() {
             variant="outline"
             size="sm"
             onClick={() => setQueryValue('page', Math.max(1, currentPage - 1))}
-            disabled={currentPage <= 1 || loading}
+            disabled={currentPage <= 1 || isLoading}
           >
             <ChevronLeft className="mr-1 h-4 w-4" />
             Prev
@@ -469,7 +499,7 @@ export function Employees() {
             variant="outline"
             size="sm"
             onClick={() => setQueryValue('page', Math.min(totalPages, currentPage + 1))}
-            disabled={currentPage >= totalPages || loading}
+            disabled={currentPage >= totalPages || isLoading}
           >
             Next
             <ChevronRight className="ml-1 h-4 w-4" />
@@ -493,7 +523,7 @@ export function Employees() {
               <FormSelect {...createForm.register('designationId')} error={!!createForm.formState.errors.designationId} options={createDesigOptions} placeholder={selectedCreateDeptId ? 'Select designation' : 'Select department first'} />
             </FormField>
           </div>
-          <FormActions onCancel={() => { setAddOpen(false); createForm.reset() }} submitLabel="Create" isSubmitting={createForm.formState.isSubmitting} />
+          <FormActions onCancel={() => { setAddOpen(false); createForm.reset() }} submitLabel="Create" isSubmitting={createEmployeeMutation.isPending} />
         </form>
       </DialogForm>
 
@@ -514,10 +544,10 @@ export function Employees() {
         </form>
       </DialogForm>
 
-      <DialogForm open={balanceOpen} onClose={() => { setBalanceOpen(false); setBalanceEmployee(null); setEmpBalance([]); setEditingBalance(null) }} title="Manage Leave Balance" subtitle={balanceEmployee?.name ?? ''}>
+      <DialogForm open={balanceOpen} onClose={() => { setBalanceOpen(false); setBalanceEmployee(null);  setEditingBalance(null) }} title="Manage Leave Balance" subtitle={balanceEmployee?.name ?? ''}>
         <div className="space-y-3">
-          {empBalance.length === 0 && <p className="text-sm text-muted-foreground">No balance records found.</p>}
-          {empBalance.map(b => (
+          {empBalance?.length === 0 && <p className="text-sm text-muted-foreground">No balance records found.</p>}
+          {empBalance?.map(b => (
             <div key={b.id} className="flex items-center justify-between rounded-lg border p-3">
               <div>
                 <p className="text-sm font-medium">{b.leaveType?.name}</p>

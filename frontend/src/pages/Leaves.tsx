@@ -58,9 +58,11 @@ const limitOptions = [
 ]
 
 export function Leaves() {
-  const { hasPermission } = useAuthStore()
+  const { hasPermission, user } = useAuthStore()
+  const isSuperAdmin = user?.role === 'superadmin'
   const [data, setData] = React.useState<LeaveRow[]>([])
   const [loading, setLoading] = React.useState(true)
+  const [viewAll, setViewAll] = React.useState(isSuperAdmin)
   const [addOpen, setAddOpen] = React.useState(false)
   const [leaveTypeOptions, setLeaveTypeOptions] = React.useState<{ value: string; label: string }[]>([])
   const [meta, setMeta] = React.useState<{ totalData: number; totalPages: number; currentPage: number; itemPerPage: number } | null>(null)
@@ -78,7 +80,7 @@ export function Leaves() {
   const [editingBalance, setEditingBalance] = React.useState<{ leaveTypeId: string; allocated: number } | null>(null)
 
   const createForm = useForm<CreateLeaveFormData>({ resolver: zodResolver(createLeaveSchema) })
-  const canApprove = hasPermission('leave:approve')
+  const canApprove = hasPermission('leave:request:approve')
   const canManageBalance = hasPermission('leave:balance:edit')
   const canViewBalance = hasPermission('leave:balance:view')
 
@@ -106,7 +108,7 @@ export function Leaves() {
   const loadLeaves = async (params = query) => {
     try {
       setLoading(true)
-      const response = canApprove
+      const response = (viewAll || isSuperAdmin) && canApprove
         ? await fetchAllLeavesService(params)
         : await fetchMyLeavesService(params)
 
@@ -143,11 +145,16 @@ export function Leaves() {
     }, query.search ? 350 : 0)
 
     return () => window.clearTimeout(timer)
-  }, [query, canApprove])
+  }, [query, canApprove, viewAll])
 
   React.useEffect(() => {
-    loadMyBalance()
-  }, [])
+    if (!isSuperAdmin) {
+      loadMyBalance()
+    } else {
+      setBalanceLoading(false)
+      setViewAll(true)
+    }
+  }, [isSuperAdmin])
 
   const loadEmployees = async () => {
     try {
@@ -259,7 +266,7 @@ export function Leaves() {
   }
 
   const columns = [
-    ...(canApprove ? [columnHelper.accessor('employeeName', { header: 'Employee', cell: (info) => info.getValue() })] : []),
+    ...((viewAll || isSuperAdmin) && canApprove ? [columnHelper.accessor('employeeName', { header: 'Employee', cell: (info) => info.getValue() })] : []),
     columnHelper.accessor('leaveTypeName', { header: 'Type', cell: (info) => info.getValue() }),
     columnHelper.accessor('startDate', { header: 'From', cell: (info) => new Date(info.getValue()).toLocaleDateString() }),
     columnHelper.accessor('endDate', { header: 'To', cell: (info) => new Date(info.getValue()).toLocaleDateString() }),
@@ -278,11 +285,11 @@ export function Leaves() {
       cell: (info) => {
         const row = info.row.original
         const items: ActionMenuItem[] = []
-        if (row.status === 'pending' && canApprove) {
+        if (row.status === 'pending' && canApprove && (viewAll || isSuperAdmin)) {
           items.push({ label: 'Approve', onClick: () => handleApprove(row.id) })
           items.push({ label: 'Reject', onClick: () => handleReject(row.id) })
         }
-        if (row.status === 'pending' && hasPermission('leave:delete')) {
+        if (row.status === 'pending' && hasPermission('leave:request:delete')) {
           items.push({ label: 'Delete', onClick: () => handleDelete(row.id), variant: 'danger' })
         }
         if (!items.length) return null
@@ -300,20 +307,25 @@ export function Leaves() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Leave Management" subtitle={canApprove ? "Manage all employee leave requests." : "View and request your leaves."}>
+      <PageHeader title="Leave Management" subtitle={canApprove && (viewAll || isSuperAdmin) ? "Manage all employee leave requests." : "View and request your leaves."}>
+        {canApprove && !isSuperAdmin && (
+          <Button variant="outline" onClick={() => setViewAll(prev => !prev)}>
+            {viewAll ? 'My Leaves' : 'All Leaves'}
+          </Button>
+        )}
         {canManageBalance && (
           <Button variant="outline" onClick={handleBulkAllocate}>
             <RefreshCw className="mr-2 h-4 w-4" /> Bulk Allocate
           </Button>
         )}
-        {hasPermission('leave:create') && (
+        {hasPermission('leave:request:create') && !isSuperAdmin && (
           <Button onClick={handleOpenAdd}>
             <Plus className="mr-2 h-4 w-4" /> Request Leave
           </Button>
         )}
       </PageHeader>
 
-      {!balanceLoading && myBalance.length > 0 && (
+      {!balanceLoading && !isSuperAdmin && myBalance.length > 0 && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {myBalance.map(b => (
             <Card key={b.id}>

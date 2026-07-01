@@ -9,6 +9,7 @@ import { DataTable } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { DialogForm, FormActions, FormField, FormInput } from '@/components/forms/DialogForm'
 import { createHolidayService, deleteHolidayService, fetchHolidaysService, updateHolidayService } from '@/services/holidayService/holidayService'
+import { fetchHolidaysOption } from '@/querryOptions/holidayOption'
 
 type HolidayRow = {
   id: string
@@ -21,7 +22,10 @@ type HolidayFormData = {
   name: string
   date: string
 }
-
+type UpdateHolidayVars = {
+  id: string
+  payload: Partial<HolidayFormData>
+}
 const columnHelper = createColumnHelper<HolidayRow>()
 
 export function Holidays() {
@@ -38,6 +42,8 @@ export function Holidays() {
     },
   })
 
+  const fetchHolidays = useQuery(fetchHolidaysOption)
+
   const createHolidayMutation = useMutation({
     mutationFn: createHolidayService,
     onSuccess: () => {
@@ -47,10 +53,7 @@ export function Holidays() {
     }
   })
 
-  type UpdateHolidayVars = {
-    id: string
-    payload: Partial<HolidayFormData>
-  }
+
   const updateHolidayMutation = useMutation({
     mutationFn: ({ id, payload }: UpdateHolidayVars) => updateHolidayService(id, payload),
     onSuccess: () => {
@@ -59,10 +62,7 @@ export function Holidays() {
       })
     }
   })
-  const fetchHolidays = useQuery({
-    queryKey: ['holidays'],
-    queryFn: () => fetchHolidaysService(),
-  })
+
 
   const deleteHolidayMutation = useMutation({
     mutationFn: deleteHolidayService,
@@ -70,7 +70,7 @@ export function Holidays() {
       querryClient.invalidateQueries({
         queryKey: ['holidays']
       })
-      
+
     }
   })
 
@@ -88,22 +88,13 @@ export function Holidays() {
     })
     setEditOpen(false)
     setEditingHoliday(null)
-    
+
   }
 
   const onDelete = (id: string) => {
     deleteHolidayMutation.mutate(id)
   }
 
-
-
-  const holidays: HolidayRow[] =
-    fetchHolidays.data?.data?.map((holiday: any) => ({
-      id: holiday.id,
-      name: holiday.name,
-      date: holiday.date,
-      day: new Date(holiday.date).toLocaleDateString('en-US', { weekday: 'long' }),
-    })) || []
 
   const handleOpenEdit = (row: HolidayRow) => {
     setEditingHoliday(row)
@@ -112,7 +103,7 @@ export function Holidays() {
       date: new Date(row.date).toISOString().split('T')[0]
     })
     setEditOpen(true)
-    
+
   }
 
   const handleCloseAdd = () => {
@@ -169,7 +160,15 @@ export function Holidays() {
     }),
   ]
 
-  const globalLoading=useIsFetching()
+  const holidays: HolidayRow[] =
+    fetchHolidays.data?.data?.map((holiday: any) => ({
+      id: holiday.id,
+      name: holiday.name,
+      date: holiday.date,
+      day: new Date(holiday.date).toLocaleDateString('en-US', { weekday: 'long' }),
+    })) || []
+
+  const globalLoading = useIsFetching()
   console.log(globalLoading)
 
   return (
@@ -181,9 +180,9 @@ export function Holidays() {
         </Button>
       </PageHeader>
 
-      {globalLoading === 1 &&  <Drama className="h-12 w-12 animate-spin" /> }
+      {globalLoading === 1 && <Drama className="h-12 w-12 animate-spin" />}
 
-      
+
 
       <DataTable
         data={holidays}

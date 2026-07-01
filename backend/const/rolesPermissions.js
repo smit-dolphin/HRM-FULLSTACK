@@ -26,7 +26,7 @@ export const rolePermissions = {
     'leave:balance:view', 'leave:balance:view_own',
   ],
   teamleader: [
-    'leave:request:view_own', 'leave:request:create', 'leave:request:cancel',
+    'leave:request:view', 'leave:request:view_own', 'leave:request:create', 'leave:request:cancel', 'leave:request:approve',
     'leave:balance:view_own',
   ],
   employee: [

@@ -30,7 +30,7 @@ export function ManageLeaves() {
   const [data, setData] = React.useState<LeaveRow[]>([])
   const [loading, setLoading] = React.useState(true)
 
-  const canApprove = hasPermission('leave:approve')
+  const canApprove = hasPermission('leave:request:approve')
 
   const loadLeaves = async () => {
     try {
@@ -126,7 +126,7 @@ export function ManageLeaves() {
             items.push({ label: 'Reject', onClick: () => handleReject(row.id) })
           }
 
-          if (row.status === 'pending' && hasPermission('leave:delete')) {
+          if (row.status === 'pending' && hasPermission('leave:request:delete')) {
             items.push({ label: 'Delete', onClick: () => handleDelete(row.id), variant: 'danger' })
           }
 

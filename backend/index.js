@@ -11,6 +11,7 @@ import prisma from "./config/prisma.config.js"
 import { leaveRouter } from "./modules/leave/leave.route.js"
 import {holidayRouter} from "./modules/holiday/holiday.route.js"
 import { permissionRouter } from "./modules/permissions/permissions.route.js"
+import { projectRouter } from "./modules/projects/permissios.routes.js"
 
 // import path from "path"
 // import { fileURLToPath } from "url"
@@ -72,6 +73,7 @@ app.use('/api/designation',designationRouter)
 app.use('/api/leave',leaveRouter)
 app.use('/api/holiday',holidayRouter)
 app.use('/api/permission',permissionRouter)
+app.use('/api/projcet',projectRouter)
 
 
 // console.log(import.meta.dirname)

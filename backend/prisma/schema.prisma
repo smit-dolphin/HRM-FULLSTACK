@@ -69,6 +69,8 @@ model Employee {
   sessions      TaskSessionTimer[]
   projectMembers ProjectMember[]
 
+  managedProjects Project[] @relation("ProjectManager")
+
   isBlocked Boolean @default(false)
 
   createdAt DateTime @default(now())
@@ -194,6 +196,9 @@ model Project {
 
   ownerUserId String
   owner       User          @relation("ProjectOwner", fields: [ownerUserId], references: [id])
+
+  managerId String?
+  manager   Employee? @relation("ProjectManager", fields: [managerId], references: [id])
 
   members ProjectMember[]
   tasks   Task[]

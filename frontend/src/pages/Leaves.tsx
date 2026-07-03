@@ -5,6 +5,8 @@ import { Plus, RefreshCw, ChevronLeft, ChevronRight, Search, Filter, X } from 'l
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
+import type { AxiosError } from 'axios'
+import type { apiErrorDataShape } from '@/types/sharedTypes'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
@@ -183,8 +185,9 @@ export function Leaves() {
         loadEmpBalance(selectedEmpId)
         setEditingBalance(null)
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to update balance')
+    } catch (error: unknown) {
+      const err = error as AxiosError<apiErrorDataShape>
+      toast.error(err.response?.data?.message || 'Failed to update balance')
     }
   }
 
@@ -195,8 +198,9 @@ export function Leaves() {
         toast.success(`Allocated: ${res.data.data.created} created, ${res.data.data.skipped} skipped`)
         loadMyBalance()
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to allocate')
+    } catch (error: unknown) {
+      const err = error as AxiosError<apiErrorDataShape>
+      toast.error(err.response?.data?.message || 'Failed to allocate')
     }
   }
 
@@ -212,8 +216,9 @@ export function Leaves() {
         loadLeaves(query)
         loadMyBalance()
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to create leave')
+    } catch (error: unknown) {
+      const err = error as AxiosError<apiErrorDataShape>
+      toast.error(err.response?.data?.message || 'Failed to create leave')
     }
   }
 
@@ -221,21 +226,30 @@ export function Leaves() {
     try {
       const res = await updateLeaveStatusService(id, 'approved')
       if (res.success) { toast.success(res.message); loadLeaves(query) }
-    } catch (error: any) { toast.error(error.response?.data?.message || 'Failed to approve') }
+    } catch (error: unknown) {
+      const err = error as AxiosError<apiErrorDataShape>
+      toast.error(err.response?.data?.message || 'Failed to approve')
+    }
   }
 
   const handleReject = async (id: string) => {
     try {
       const res = await updateLeaveStatusService(id, 'rejected')
       if (res.success) { toast.success(res.message); loadLeaves(query) }
-    } catch (error: any) { toast.error(error.response?.data?.message || 'Failed to reject') }
+    } catch (error: unknown) {
+      const err = error as AxiosError<apiErrorDataShape>
+      toast.error(err.response?.data?.message || 'Failed to reject')
+    }
   }
 
   const handleDelete = async (id: string) => {
     try {
       const res = await deleteLeaveService(id)
       if (res.success) { toast.success(res.message); loadLeaves(query); loadMyBalance() }
-    } catch (error: any) { toast.error(error.response?.data?.message || 'Failed to delete') }
+    } catch (error: unknown) {
+      const err = error as AxiosError<apiErrorDataShape>
+      toast.error(err.response?.data?.message || 'Failed to delete')
+    }
   }
 
   const setQueryValue = (key: keyof FetchLeavesParams, value: string | number | undefined) => {

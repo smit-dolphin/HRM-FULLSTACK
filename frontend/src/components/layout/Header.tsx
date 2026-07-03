@@ -10,7 +10,7 @@ type HeaderProps = {
   onOpenMobile?: () => void;
 };
 
-export function Header({ collapsed = false, onToggleCollapse, onOpenMobile }: HeaderProps) {
+export function Header({ collapsed = false, onOpenMobile }: HeaderProps) {
   const { user } = useAuthStore();
 
   return (
@@ -21,9 +21,7 @@ export function Header({ collapsed = false, onToggleCollapse, onOpenMobile }: He
             <Menu className="w-5 h-5" />
           </Button>
 
-          <Button variant="ghost" size="icon" className="hidden md:inline-flex" onClick={onToggleCollapse}>
-            {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-          </Button>
+          
 
           <div className="hidden min-w-0 lg:block">
             <h1 className="truncate text-lg font-semibold text-foreground">HRM</h1>

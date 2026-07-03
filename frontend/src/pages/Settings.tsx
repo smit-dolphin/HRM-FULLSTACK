@@ -5,6 +5,8 @@ import { Plus, RefreshCw } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
+import type { AxiosError } from 'axios'
+import type { apiErrorDataShape } from '@/types/sharedTypes'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
@@ -78,7 +80,10 @@ export function Settings() {
     try {
       const res = await createLeaveTypeService(formData)
       if (res.success) { toast.success(res.message); setAddOpen(false); createForm.reset({ isPaid: true, requiresApproval: true }); loadLeaveTypes() }
-    } catch (error: any) { toast.error(error.response?.data?.message || 'Failed to create') }
+    } catch (error: unknown) {
+      const err = error as AxiosError<apiErrorDataShape>
+      toast.error(err.response?.data?.message || 'Failed to create')
+    }
   }
 
   const onUpdateType = async (formData: UpdateLeaveTypeFormData) => {
@@ -86,14 +91,20 @@ export function Settings() {
     try {
       const res = await updateLeaveTypeService(editingType.id, formData)
       if (res.success) { toast.success(res.message); setEditOpen(false); editForm.reset(); setEditingType(null); loadLeaveTypes() }
-    } catch (error: any) { toast.error(error.response?.data?.message || 'Failed to update') }
+    } catch (error: unknown) {
+      const err = error as AxiosError<apiErrorDataShape>
+      toast.error(err.response?.data?.message || 'Failed to update')
+    }
   }
 
   const handleDelete = async (id: string) => {
     try {
       const res = await deleteLeaveTypeService(id)
       if (res.success) { toast.success(res.message); loadLeaveTypes() }
-    } catch (error: any) { toast.error(error.response?.data?.message || 'Failed to delete') }
+    } catch (error: unknown) {
+      const err = error as AxiosError<apiErrorDataShape>
+      toast.error(err.response?.data?.message || 'Failed to delete')
+    }
   }
 
   const handleBulkAllocate = async () => {
@@ -101,8 +112,10 @@ export function Settings() {
     try {
       const res = await bulkAllocateService(new Date().getFullYear())
       if (res.success) { toast.success(`Allocated: ${res.data.created} created, ${res.data.skipped} skipped`) }
-    } catch (error: any) { toast.error(error.response?.data?.message || 'Failed to allocate') }
-    finally { setAllocating(false) }
+    } catch (error: unknown) {
+      const err = error as AxiosError<apiErrorDataShape>
+      toast.error(err.response?.data?.message || 'Failed to allocate')
+    } finally { setAllocating(false) }
   }
 
   const columns = [

@@ -6,6 +6,8 @@ import { Download, Plus, ArrowUpDown, ChevronLeft, ChevronRight, Search, Filter,
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
+import type { AxiosError } from 'axios'
+import type { apiErrorDataShape } from '@/types/sharedTypes'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { DataTable } from '@/components/ui/DataTable'
@@ -141,8 +143,9 @@ export function Users() {
         setAddOpen(false)
         createForm.reset()
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to create user')
+    } catch (error: unknown) {
+      const err = error as AxiosError<apiErrorDataShape>
+      toast.error(err.response?.data?.message || 'Failed to create user')
     }
   }
 
@@ -156,8 +159,9 @@ export function Users() {
         editForm.reset()
         setEditingUser(null)
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to update user')
+    } catch (error: unknown) {
+      const err = error as AxiosError<apiErrorDataShape>
+      toast.error(err.response?.data?.message || 'Failed to update user')
     }
   }
 
@@ -167,8 +171,9 @@ export function Users() {
       if (res.success) {
         toast.success(res.message)
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to deactivate user')
+    } catch (error: unknown) {
+      const err = error as AxiosError<apiErrorDataShape>
+      toast.error(err.response?.data?.message || 'Failed to deactivate user')
     }
   }
 
@@ -178,8 +183,9 @@ export function Users() {
       if (res.success) {
         toast.success(res.message)
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to delete user')
+    } catch (error: unknown) {
+      const err = error as AxiosError<apiErrorDataShape>
+      toast.error(err.response?.data?.message || 'Failed to delete user')
     }
   }
 

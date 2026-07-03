@@ -19,6 +19,8 @@ import {
   type Designation,
 } from '@/services/designationService/designationService'
 import { createDesignationSchema, updateDesignationSchema, type CreateDesignationFormData, type UpdateDesignationFormData } from '@/schemas/designation.schema'
+import type { apiErrorDataShape } from '@/types/sharedTypes'
+import type { AxiosError } from 'axios'
 
 type DesignationRow = {
   id: string
@@ -92,8 +94,9 @@ export function DepartmentDetail() {
         createForm.reset({ departmentId: departmentId || '' })
         loadDesignations()
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to create designation')
+    } catch (error: unknown){
+          const err = error as AxiosError<apiErrorDataShape>
+      toast.error(err.response?.data?.message || 'Failed to create designation')
     }
   }
 
@@ -108,8 +111,9 @@ export function DepartmentDetail() {
         setEditingDesig(null)
         loadDesignations()
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to update designation')
+    } catch (error: unknown){
+          const err = error as AxiosError<apiErrorDataShape>
+      toast.error(err.response?.data?.message || 'Failed to update designation')
     }
   }
 
@@ -120,8 +124,9 @@ export function DepartmentDetail() {
         toast.success(res.message)
         loadDesignations()
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to delete designation')
+    } catch (error: unknown){
+          const err = error as AxiosError<apiErrorDataShape>
+      toast.error(err.response?.data?.message || 'Failed to delete designation')
     }
   }
 

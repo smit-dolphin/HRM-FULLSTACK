@@ -1,6 +1,8 @@
 import React from 'react'
 import { createColumnHelper } from '@tanstack/react-table'
 import { toast } from 'sonner'
+import type { AxiosError } from 'axios'
+import type { apiErrorDataShape } from '@/types/sharedTypes'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { DataTable } from '@/components/ui/DataTable'
@@ -62,8 +64,9 @@ export function ManageLeaves() {
         toast.success(res.message)
         loadLeaves()
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to approve leave')
+    } catch (error: unknown) {
+      const err = error as AxiosError<apiErrorDataShape>
+      toast.error(err.response?.data?.message || 'Failed to approve leave')
     }
   }
 
@@ -74,8 +77,9 @@ export function ManageLeaves() {
         toast.success(res.message)
         loadLeaves()
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to reject leave')
+    } catch (error: unknown) {
+      const err = error as AxiosError<apiErrorDataShape>
+      toast.error(err.response?.data?.message || 'Failed to reject leave')
     }
   }
 
@@ -86,8 +90,9 @@ export function ManageLeaves() {
         toast.success(res.message)
         loadLeaves()
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to delete leave')
+    } catch (error: unknown) {
+      const err = error as AxiosError<apiErrorDataShape>
+      toast.error(err.response?.data?.message || 'Failed to delete leave')
     }
   }
 

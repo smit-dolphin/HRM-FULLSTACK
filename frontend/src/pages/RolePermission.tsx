@@ -1,6 +1,8 @@
 import React from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
+import type { AxiosError } from 'axios'
+import type { apiErrorDataShape } from '@/types/sharedTypes'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/ui/PageHeader'
 import {
@@ -43,8 +45,9 @@ export function RolePermission() {
           nextSelected[permission] = true
         })
         setSelectedPermissions(nextSelected)
-      } catch (error: any) {
-        toast.error(error.response?.data?.message || 'Failed to load permissions')
+      } catch (error: unknown) {
+        const err = error as AxiosError<apiErrorDataShape>
+        toast.error(err.response?.data?.message || 'Failed to load permissions')
       } finally {
         setLoading(false)
       }
@@ -88,8 +91,9 @@ export function RolePermission() {
       if (res.success) {
         toast.success(res.message)
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to save permissions')
+    } catch (error: unknown) {
+      const err = error as AxiosError<apiErrorDataShape>
+      toast.error(err.response?.data?.message || 'Failed to save permissions')
     } finally {
       setSaving(false)
     }

@@ -25,6 +25,8 @@ import {
   type LeaveBalance,
 } from '@/services/leaveService/leaveService'
 import { createLeaveSchema, type CreateLeaveFormData } from '@/schemas/leave.schema'
+import type { AxiosError } from 'axios'
+import type { apiErrorDataShape } from '@/types/sharedTypes'
 
 type LeaveRow = {
   id: string
@@ -112,27 +114,37 @@ export function LeaveDashboard() {
     try {
       const res = await createLeaveService(formData)
       if (res.success) { toast.success(res.message); setAddOpen(false); createForm.reset(); loadLeaves(); loadMyBalance() }
-    } catch (error: any) { toast.error(error.response?.data?.message || 'Failed to create leave') }
+    } catch (error: unknown){
+          const err = error as AxiosError<apiErrorDataShape>
+           toast.error(err.response?.data?.message || 'Failed to create leave') }
   }
 
   const handleApprove = async (id: string) => {
     try { const res = await updateLeaveStatusService(id, 'approved'); if (res.success) { toast.success(res.message); loadLeaves() } }
-    catch (error: any) { toast.error(error.response?.data?.message || 'Failed') }
+     catch (error: unknown){
+          const err = error as AxiosError<apiErrorDataShape>
+           toast.error(err.response?.data?.message || 'Failed') }
   }
 
   const handleReject = async (id: string) => {
     try { const res = await updateLeaveStatusService(id, 'rejected'); if (res.success) { toast.success(res.message); loadLeaves() } }
-    catch (error: any) { toast.error(error.response?.data?.message || 'Failed') }
+     catch (error: unknown){
+          const err = error as AxiosError<apiErrorDataShape>
+           toast.error(err.response?.data?.message || 'Failed') }
   }
 
   const handleDelete = async (id: string) => {
     try { const res = await deleteLeaveService(id); if (res.success) { toast.success(res.message); loadLeaves(); loadMyBalance() } }
-    catch (error: any) { toast.error(error.response?.data?.message || 'Failed') }
+    catch (error: unknown){
+         const err = error as AxiosError<apiErrorDataShape>
+         toast.error(err.response?.data?.message || 'Failed') }
   }
 
   const handleCancel = async (id: string) => {
     try { const res = await cancelLeaveService(id); if (res.success) { toast.success(res.message); loadLeaves(); loadMyBalance() } }
-    catch (error: any) { toast.error(error.response?.data?.message || 'Failed to cancel') }
+   catch (error: unknown){
+         const err = error as AxiosError<apiErrorDataShape>
+          toast.error(err.response?.data?.message || 'Failed to cancel') }
   }
 
   const columns = [

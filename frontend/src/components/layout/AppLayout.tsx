@@ -19,6 +19,7 @@ export function AppLayout() {
       <Sidebar
         collapsed={collapsed}
         mobileOpen={mobileOpen}
+        onToggleCollapse={() => setCollapsed((s) => !s)}
         onCloseMobile={() => setMobileOpen(false)}
         onCollapse={() => setCollapsed((s) => !s)}
       />
@@ -26,7 +27,7 @@ export function AppLayout() {
       <div className="flex min-w-0 flex-1 flex-col transition-all duration-300">
         <Header
           collapsed={collapsed}
-          onToggleCollapse={() => setCollapsed((s) => !s)}
+          
           onOpenMobile={() => setMobileOpen(true)}
         />
 

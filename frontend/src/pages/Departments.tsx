@@ -19,6 +19,8 @@ import {
   type Department,
 } from '@/services/departmentService/departmentService'
 import { createDepartmentSchema, updateDepartmentSchema, type CreateDepartmentFormData, type UpdateDepartmentFormData } from '@/schemas/department.schema'
+import { AxiosError } from 'axios'
+import type { apiErrorDataShape } from '@/types/sharedTypes'
 
 type DepartmentRow = {
   id: string
@@ -73,8 +75,9 @@ export function Departments() {
         createForm.reset()
         loadDepartments()
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to create department')
+    } catch (error: unknown){
+      const err = error as AxiosError<apiErrorDataShape>
+      toast.error(err.response?.data?.message || 'Failed to create department')
     }
   }
 
@@ -89,8 +92,9 @@ export function Departments() {
         setEditingDept(null)
         loadDepartments()
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to update department')
+    } catch (error:unknown) {
+      const err = error as AxiosError<apiErrorDataShape>
+      toast.error(err.response?.data?.message || 'Failed to update department')
     }
   }
 
@@ -101,8 +105,9 @@ export function Departments() {
         toast.success(res.message)
         loadDepartments()
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to delete department')
+    } catch (error: unknown){
+      const err = error as AxiosError<apiErrorDataShape>
+      toast.error(err.response?.data?.message || 'Failed to delete department')
     }
   }
 

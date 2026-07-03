@@ -10,9 +10,12 @@ import {
   BriefcaseBusiness,
   Building2,
   CalendarRange,
+  Plus,
   X,
   Moon,
   Sun,
+  ChevronRight,
+  ChevronLeft,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -26,17 +29,19 @@ const navItems: { icon: any; label: string; path: string; permission?: string }[
   { icon: Building2, label: 'Departments', path: '/departments', permission: 'department:view' },
   { icon: CalendarDays, label: 'Leaves', path: '/leaves', permission: 'leave:request:view_own' },
   { icon: CalendarRange, label: 'Holidays', path: '/holidays', permission: 'holiday:view' },
+  { icon: Plus, label: 'Kanban Board', path: '/kanban' },
   { icon: Settings, label: 'Settings', path: '/settings', permission: 'leave:type:manage' },
 ];
 
 type SidebarProps = {
   collapsed?: boolean;
   mobileOpen?: boolean;
+  onToggleCollapse?: () => void;
   onCloseMobile?: () => void;
   onCollapse?: () => void;
 };
 
-export function Sidebar({ collapsed = false, mobileOpen = false, onCloseMobile, onCollapse }: SidebarProps) {
+export function Sidebar({ collapsed = false, mobileOpen = false, onToggleCollapse, onCloseMobile, onCollapse }: SidebarProps) {
   const { user, logout, hasPermission } = useAuthStore();
   const { theme, setTheme } = useTheme();
   void onCollapse;
@@ -61,14 +66,26 @@ export function Sidebar({ collapsed = false, mobileOpen = false, onCloseMobile, 
         )}
       >
         <div className={cn("flex items-center justify-between border-b border-border px-4 py-4", compact && "justify-center border-b-0 px-3")}>
-          <div className={cn("flex min-w-0 items-center", compact ? "justify-center" : "gap-3")}>
-            <div className={cn("flex shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm", compact ? "h-11 w-11" : "h-10 w-10")}>
+          <div className={cn("flex min-w-0 items-center ", compact ? "justify-center group relative" : "gap-3")}>
+
+            <div className={cn("flex shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm ", compact ? "h-11 w-11 group-hover:opacity-0" : "h-10 w-10")}>
               <BriefcaseBusiness className="h-5 w-5" />
             </div>
+            <Button variant="ghost" size="icon" className={cn(
+              "absolute inset-0 m-auto hidden md:inline-flex opacity-0 transition-opacity duration-200",
+              compact && "group-hover:opacity-100"
+            )} onClick={onToggleCollapse}>
+              {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+            </Button>
+
             <div className={cn('min-w-0', compact && 'hidden')}>
               <h2 className="truncate text-base font-semibold tracking-tight text-foreground">HRM</h2>
               <p className="truncate text-xs text-muted-foreground">People operations</p>
+
             </div>
+            {!collapsed && <Button variant="ghost" size="icon" className="hidden md:inline-flex" onClick={onToggleCollapse}>
+              {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+            </Button>}
           </div>
           {mobileOpen && (
             <Button variant="ghost" size="icon" className="md:hidden" onClick={onCloseMobile}>

@@ -75,7 +75,7 @@ app.use('/api/designation',designationRouter)
 app.use('/api/leave',leaveRouter)
 app.use('/api/holiday',holidayRouter)
 app.use('/api/permission',permissionRouter)
-app.use('/api/projcet',projectRouter)
+app.use('/api/project',projectRouter)
 app.use('/api/task', taskRouter)
 app.use('/api/task-session', taskSessionsRouter)
 

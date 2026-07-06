@@ -10,6 +10,25 @@ export interface Project {
   updatedAt?: string
 }
 
+
+export interface ProjectMember {
+  projectId: string
+  employeeId: string
+  employee: {
+    id: string
+    departmentId: string
+    designationId: string
+    user: {
+      id: string
+      firstName: string
+      lastName: string
+      email: string
+      profileImage?: string
+    }
+  }
+}
+
+
 export interface ProjectListResponse {
   success: boolean
   message: string
@@ -133,3 +152,25 @@ export async function addProjectMemberService(
 
   return response.data
 }
+
+export async function fetchProjectMembersService(
+  id: string
+): Promise<ApiResponse<ProjectMember[]>> {
+  const response = await baseApi.get<ApiResponse<ProjectMember[]>>(
+    `/project/${id}/members`
+  )
+
+  return response.data
+}
+
+export async function removeProjectMemberService(
+  projectId: string,
+  employeeId: string
+): Promise<ApiResponse<null>> {
+  const response = await baseApi.delete<ApiResponse<null>>(
+    `/project/${projectId}/members/${employeeId}`
+  )
+
+  return response.data
+}
+

@@ -22,6 +22,7 @@ const Settings = lazy(() => import('@/pages/Settings').then(m => ({ default: m.S
 const RolePermission=lazy(() => import('@/pages/RolePermission').then(m => ({ default: m.RolePermission })))
 const Holidays = lazy(() => import('@/pages/Holidays').then(m => ({ default: m.Holidays })))
 const KanbanBoard = lazy(() => import('@/pages/KanbanBoard').then(m => ({ default: m.KanbanBoard })))
+const Projects = lazy(() => import('@/pages/Projects').then(m => ({ default: m.Projects })))
 
 function App() {
   return (
@@ -44,7 +45,7 @@ function App() {
                   <Route path="leaves" element={<RouteGuard permission="leave:request:view_own"><LeaveDashboard /></RouteGuard>} />
                   <Route path="holidays" element={<RouteGuard permission="holiday:view"><Holidays /></RouteGuard>} />
                   <Route path="kanban" element={<KanbanBoard />} />
-                  <Route path="projects"/>
+                  <Route path="projects" element={<Projects />} />
                   <Route path="settings" element={<RouteGuard permission="leave:type:edit"><Settings /></RouteGuard>} />
                 </Route>
               </Route>

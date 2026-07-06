@@ -536,3 +536,85 @@ export const getProjectById = async (req, res) => {
         );
     }
 };
+
+
+export const getAllMembers = async (req, res) => {
+    try {
+
+        const projectId = req.params.id
+        const members = await prisma.projectMember.findMany({
+            where: { projectId },
+            include: {
+                employee: {
+                    include: {
+                        user: true
+                    }
+                }
+            }
+        })
+        return successResponse(
+            res,
+            200,
+            "Members fetched successfully.",
+            members
+        );
+    } catch (error) {
+        return errorResponse(
+            res,
+            500,
+            "Something went wrong",
+            error.message
+        );
+    }
+}
+
+
+export const removeMember = async (req, res) => {
+    try { 
+        const { id, employeeId } = req.params;
+
+        const project = await prisma.project.findUnique({ where: { id } });
+        if (!project) {
+            return errorResponse(res, 404, "Not found", "Project does not exist.");
+        }
+
+        const projectMember = await prisma.projectMember.findUnique({
+            where: {
+                projectId_employeeId: {
+                    projectId: id,
+                    employeeId: employeeId
+                }
+            }
+        })
+        if (!projectMember) {
+            return errorResponse(res, 404, "Not found", "Member not found.");
+        }
+
+        // Check permissions
+        if (req.user.role !== "admin") {
+            const managerEmployee = await prisma.employee.findUnique({ where: { userId: req.user.id } });
+            if (!managerEmployee || managerEmployee.id !== project.managerId) {
+                return errorResponse(res, 403, "Access denied", "Only admins or the assigned manager can remove members.");
+            }
+        }
+
+        await prisma.projectMember.delete({
+            where: {
+                projectId_employeeId: {
+                    projectId: id,
+                    employeeId: employeeId
+                }
+            }
+        })
+
+        return successResponse(res, 200, "Member removed successfully.", null);
+    }
+    catch (error) {
+        return errorResponse(
+            res,
+            500,
+            "Something went wrong",
+            error.message
+        );
+    }
+}

@@ -22,6 +22,13 @@ export interface Employee {
     name: string;
     departmentId: string;
   };
+  // New relational fields
+  reportsToId?: string;
+  manager?: Employee; // manager of this employee
+  subordinates?: Employee[]; // employees reporting to this employee
+  leaveBalances?: any[]; // could be typed more specifically
+  leaveRequests?: any[];
+  leaveHistories?: any[];
 }
 
 export interface EmployeeListResponse {
@@ -37,16 +44,33 @@ export interface EmployeeListResponse {
   };
 }
 
+export interface FetchEmployeesParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  isBlocked?: '' | 'true' | 'false';
+  from?: string;
+  to?: string;
+}
+
+function cleanParams(params: FetchEmployeesParams) {
+  return Object.fromEntries(
+    Object.entries(params).filter(([, value]) => value !== '' && value !== undefined && value !== null)
+  )
+}
+
 export interface CreateEmployeePayload {
   userId: string;
   departmentId: string;
   designationId: string;
+  reportsToId?: string;
 }
 
 export interface UpdateEmployeePayload {
   departmentId?: string;
   designationId?: string;
   isBlocked?: boolean;
+  reportsToId?: string;
 }
 
 export interface ApiResponse<T = unknown> {
@@ -59,16 +83,12 @@ export interface ApiResponse<T = unknown> {
  * Get all employees
  */
 export async function fetchEmployeesService(
-  page = 1,
-  limit = 100
+  params: FetchEmployeesParams = {}
 ): Promise<EmployeeListResponse> {
   const response = await baseApi.get<EmployeeListResponse>(
     "/employee",
     {
-      params: {
-        page,
-        limit,
-      },
+      params: cleanParams(params),
     }
   );
 
@@ -81,9 +101,10 @@ export async function fetchEmployeesService(
 export async function createEmployeeService(
   payload: CreateEmployeePayload
 ): Promise<ApiResponse<Employee>> {
-  const response = await baseApi.post<
-    ApiResponse<Employee>
-  >("/employee", payload);
+  const response = await baseApi.post<ApiResponse<Employee>>(
+    "/employee",
+    payload
+  );
 
   return response.data;
 }
@@ -95,9 +116,10 @@ export async function updateEmployeeService(
   id: string,
   payload: UpdateEmployeePayload
 ): Promise<ApiResponse<Employee>> {
-  const response = await baseApi.patch<
-    ApiResponse<Employee>
-  >(`/employee/${id}`, payload);
+  const response = await baseApi.patch<ApiResponse<Employee>>(
+    `/employee/${id}`,
+    payload
+  );
 
   return response.data;
 }
@@ -109,11 +131,11 @@ export async function toggleEmployeeBlockService(
   id: string,
   isBlocked: boolean
 ): Promise<ApiResponse<Employee>> {
-  const response = await baseApi.patch<
-    ApiResponse<Employee>
-  >(`/employee/${id}/block`, {
-    isBlocked,
-  });
+  const response = await baseApi.patch<ApiResponse<Employee>>(
+    `/employee/${id}/block`, {
+      isBlocked,
+    }
+  );
 
   return response.data;
 }
@@ -124,9 +146,9 @@ export async function toggleEmployeeBlockService(
 export async function deleteEmployeeService(
   id: string
 ): Promise<ApiResponse<Employee>> {
-  const response = await baseApi.delete<
-    ApiResponse<Employee>
-  >(`/employee/${id}`);
+  const response = await baseApi.delete<ApiResponse<Employee>>(
+    `/employee/${id}`
+  );
 
   return response.data;
 }

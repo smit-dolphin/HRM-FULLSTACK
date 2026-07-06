@@ -1,17 +1,18 @@
 import { Router } from "express";
-import { fetchAllUsers ,createUser,deleteUser, updateUser, fetchUserById, softeDeleteUser, getLoggedinUser} from "./users.controller.js";
+import { fetchAllUsers, createUser, deleteUser, updateUser, fetchUserById, softeDeleteUser, getLoggedinUser } from "./users.controller.js";
 import authenticatUser from "../../middlewares/auth.middleware.js";
+import autherize from "../../middlewares/autherize.middleare.js";
 
-const router=Router() 
+const router = Router()
 
-router.get('/',authenticatUser,fetchAllUsers)
 router.get('/me', authenticatUser, getLoggedinUser)
-router.get('/:id',authenticatUser,fetchUserById)
+// router.get('/', fetchAllUsers)
+router.get('/', authenticatUser, autherize('user:view'), fetchAllUsers)
 
-router.post('/',authenticatUser,createUser)
-router.delete('/:id',authenticatUser,deleteUser)
+router.get('/:id', authenticatUser, autherize('user:view'), fetchUserById)
+router.post('/', authenticatUser, autherize('user:create'), createUser)
+router.patch('/:id', authenticatUser, autherize('user:edit'), updateUser)
+router.patch('/:id/deactivate', authenticatUser, autherize('user:delete'), softeDeleteUser)
+router.delete('/:id', authenticatUser, autherize('user:delete'), deleteUser)
 
-router.patch('/:id',authenticatUser,updateUser)
-router.patch('/:id/deactivate',authenticatUser,softeDeleteUser)
-
-export const userRouter=router
+export const userRouter = router

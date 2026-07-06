@@ -1,7 +1,7 @@
 import errorResponse from "../../helper/errorResponse.js"
 import successResponse from "../../helper/successResponse.js"
 import prisma from "../../config/prisma.config.js"
-import { createProjectSchema, updateProjectStatusSchema } from "./projectsValidation.schema.js"
+import { createProjectSchema, updateProjectStatusSchema, addProjectMemberSchema } from "./projectsValidation.schema.js"
 
 
 
@@ -264,6 +264,69 @@ export const updateProject = async (req, res) => {
             "Something went wrong",
             error.message
         );
+    }
+};
+
+export const addProjectMember = async (req, res) => {
+    try {
+        const projectId = req.params.id;
+        if (!projectId) {
+            return errorResponse(res, 400, "Bad request", "Invalid project id.");
+        }
+
+        const validation = addProjectMemberSchema.safeParse(req.body);
+        if (!validation.success) {
+            return errorResponse(
+                res,
+                400,
+                "Validation failed",
+                validation.error.issues[0].message
+            );
+        }
+
+        const { employeeId } = validation.data;
+
+        const project = await prisma.project.findUnique({ where: { id: projectId } });
+        if (!project) {
+            return errorResponse(res, 404, "Not found", "Project does not exist.");
+        }
+
+        const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
+        if (!employee) {
+            return errorResponse(res, 404, "Not found", "Employee does not exist.");
+        }
+
+        const existingMember = await prisma.projectMember.findUnique({
+            where: {
+                projectId_employeeId: {
+                    projectId,
+                    employeeId,
+                },
+            },
+        });
+
+        if (existingMember) {
+            return errorResponse(res, 409, "Conflict", "Employee is already a member of this project.");
+        }
+
+        const role = req.user.role;
+        if (role !== "admin") {
+            const managerEmployee = await prisma.employee.findUnique({ where: { userId: req.user.id } });
+            if (!managerEmployee || managerEmployee.id !== project.managerId) {
+                return errorResponse(res, 403, "Access denied", "Only admins or the assigned manager can add members.");
+            }
+        }
+
+        const projectMember = await prisma.projectMember.create({
+            data: {
+                projectId,
+                employeeId,
+            },
+        });
+
+        return successResponse(res, 201, "Member added successfully.", projectMember);
+    } catch (error) {
+        return errorResponse(res, 500, "Something went wrong", error.message);
     }
 };
 

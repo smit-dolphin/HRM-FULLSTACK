@@ -72,3 +72,7 @@ export const updateProjectSchema = z.object({
         message: "At least one field must be provided for update.",
     }
 );
+
+export const addProjectMemberSchema = z.object({
+  employeeId: z.string().trim().min(1, "Employee id is required."),
+});

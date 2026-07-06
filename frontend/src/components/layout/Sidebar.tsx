@@ -29,6 +29,7 @@ const navItems: { icon: any; label: string; path: string; permission?: string }[
   { icon: Building2, label: 'Departments', path: '/departments', permission: 'department:view' },
   { icon: CalendarDays, label: 'Leaves', path: '/leaves', permission: 'leave:request:view_own' },
   { icon: CalendarRange, label: 'Holidays', path: '/holidays', permission: 'holiday:view' },
+  { icon: Plus, label: 'projects', path: '/projects' },
   { icon: Plus, label: 'Kanban Board', path: '/kanban' },
   { icon: Settings, label: 'Settings', path: '/settings', permission: 'leave:type:manage' },
 ];

@@ -13,6 +13,7 @@ import {holidayRouter} from "./modules/holiday/holiday.route.js"
 import { permissionRouter } from "./modules/permissions/permissions.route.js"
 import { projectRouter } from "./modules/projects/project.routes.js"
 import { taskRouter } from "./modules/tasks/task.route.js"
+import { taskSessionsRouter } from "./modules/tasksessions/tasksessions.route.js"
 
 // import path from "path"
 // import { fileURLToPath } from "url"
@@ -76,6 +77,7 @@ app.use('/api/holiday',holidayRouter)
 app.use('/api/permission',permissionRouter)
 app.use('/api/projcet',projectRouter)
 app.use('/api/task', taskRouter)
+app.use('/api/task-session', taskSessionsRouter)
 
 
 // console.log(import.meta.dirname)

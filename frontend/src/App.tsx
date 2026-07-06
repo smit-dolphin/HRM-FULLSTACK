@@ -44,6 +44,7 @@ function App() {
                   <Route path="leaves" element={<RouteGuard permission="leave:request:view_own"><LeaveDashboard /></RouteGuard>} />
                   <Route path="holidays" element={<RouteGuard permission="holiday:view"><Holidays /></RouteGuard>} />
                   <Route path="kanban" element={<KanbanBoard />} />
+                  <Route path="projects"/>
                   <Route path="settings" element={<RouteGuard permission="leave:type:edit"><Settings /></RouteGuard>} />
                 </Route>
               </Route>

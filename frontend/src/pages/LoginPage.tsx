@@ -1,5 +1,6 @@
 import React from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+// import { Navigate, useNavigate } from 'react-router-dom';
+import  { Navigate, useNavigate } from '@tanstack/react-router'
 import { Sparkles } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { LoginForm } from '@/components/forms/LoginForm';
@@ -47,7 +48,7 @@ export function LoginPage() {
       <div className="min-h-[90vh] bg-slate-100 px-4 flex items-center justify-center">
         <div className="w-full max-w-md">
           <div className="rounded-2xl p-6 sm:p-8">
-            <LoginForm onSuccess={() => navigate('/', { replace: true })} />
+            <LoginForm onSuccess={() => navigate({ to:'/',replace: true })} />
           </div>
         </div>
       </div>

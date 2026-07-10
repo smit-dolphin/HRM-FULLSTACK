@@ -24,7 +24,6 @@ export async function startTaskSessionService(
   const response = await baseApi.post<ApiResponse<TaskSession>>(
     `/task-session/start/${taskId}`
   )
-
   return response.data
 }
 
@@ -34,7 +33,6 @@ export async function pauseTaskSessionService(
   const response = await baseApi.patch<ApiResponse<TaskSession>>(
     `/task-session/pause/${taskId}`
   )
-
   return response.data
 }
 
@@ -44,6 +42,5 @@ export async function completeTaskSessionService(
   const response = await baseApi.patch<ApiResponse<TaskSession>>(
     `/task-session/complete/${taskId}`
   )
-
   return response.data
 }

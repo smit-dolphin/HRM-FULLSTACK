@@ -1,5 +1,6 @@
 import React from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+// import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate } from '@tanstack/react-router'
 import { createColumnHelper } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
 import { Plus, ArrowLeft, ArrowUpDown } from 'lucide-react'
@@ -30,7 +31,7 @@ type DesignationRow = {
 const columnHelper = createColumnHelper<DesignationRow>()
 
 export function DepartmentDetail() {
-  const { id: departmentId } = useParams<{ id: string }>()
+  const { id: departmentId } = useParams({from:`departments/$id`})
   const navigate = useNavigate()
   const { hasPermission } = useAuthStore()
 
@@ -157,7 +158,7 @@ export function DepartmentDetail() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/departments')} className="mt-1">
+          <Button variant="ghost" size="icon" onClick={() => navigate({to:'/departments'})} className="mt-1">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <PageHeader title={deptName || 'Department'} subtitle="Manage designations in this department." />

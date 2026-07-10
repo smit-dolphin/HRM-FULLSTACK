@@ -1,4 +1,5 @@
-import { Navigate } from 'react-router-dom'
+// import { Navigate } from 'react-router-dom'
+import { Navigate } from '@tanstack/react-router'
 import { useAuthStore } from '@/store/useAuthStore'
 
 interface RouteGuardProps {

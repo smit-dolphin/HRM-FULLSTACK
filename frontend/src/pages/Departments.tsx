@@ -1,5 +1,6 @@
 import React from 'react'
-import { useNavigate } from 'react-router-dom'
+// import { useNavigate } from 'react-router-dom'
+import { useNavigate } from '@tanstack/react-router'
 import { createColumnHelper } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
 import { Plus, ArrowUpDown } from 'lucide-react'
@@ -124,7 +125,7 @@ export function Departments() {
       header: 'Designations',
       cell: (info) => (
         <button
-          onClick={() => navigate(`/departments/${info.row.original.id}`)}
+          onClick={() => navigate({to:`/departments/${info.row.original.id}`})}
           className="text-primary underline-offset-4 hover:underline"
         >
           {info.getValue()} designations
@@ -137,7 +138,7 @@ export function Departments() {
       cell: (info) => {
         const row = info.row.original
         const items: ActionMenuItem[] = [
-          { label: 'View Designations', onClick: () => navigate(`/departments/${row.id}`) },
+          { label: 'View Designations', onClick: () => navigate({to:`/departments/${row.id}`}) },
         ]
         if (hasPermission('department:edit')) items.push({ label: 'Edit', onClick: () => handleOpenEdit(row) })
         if (hasPermission('department:delete')) items.push({ label: 'Delete', onClick: () => handleDelete(row.id), variant: 'danger' })

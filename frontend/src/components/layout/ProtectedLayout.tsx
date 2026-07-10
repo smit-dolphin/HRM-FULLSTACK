@@ -1,4 +1,5 @@
-import { Navigate, Outlet } from "react-router-dom"
+// import { Navigate, Outlet } from "react-router-dom"
+import { Navigate, Outlet } from '@tanstack/react-router'
 import { useAuthStore } from "@/store/useAuthStore"
 
 export function ProtectedLayout() {

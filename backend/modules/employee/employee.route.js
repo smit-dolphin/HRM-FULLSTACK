@@ -6,6 +6,7 @@ import autherize from "../../middlewares/autherize.middleare.js"
 const router = Router()
 
 router.get('/', authenticatUser, autherize('employee:view'), getAllEmployee)
+// router.get('/', getAllEmployee)
 router.get('/:id', authenticatUser, autherize('employee:view'), getEmployeeById)
 router.post('/', authenticatUser, autherize('employee:create'), createEmployee)
 router.patch('/:id', authenticatUser, autherize('employee:edit'), updateEmployee)

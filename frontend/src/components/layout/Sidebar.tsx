@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { NavLink } from 'react-router-dom';
+// import { NavLink } from 'react-router-dom';
+import { Link } from "@tanstack/react-router"
 import {
   LayoutDashboard,
   Users,
@@ -73,8 +74,8 @@ export function Sidebar({ collapsed = false, mobileOpen = false, onToggleCollaps
               <BriefcaseBusiness className="h-5 w-5" />
             </div>
             <Button variant="ghost" size="icon" className={cn(
-              "absolute inset-0 m-auto hidden md:inline-flex opacity-0 transition-opacity duration-200",
-              compact && "group-hover:opacity-100"
+              "absolute inset-0 m-auto hidden md:inline-flex opacity-0 transition-opacity duration-200 pointer-events-none",
+              compact && "group-hover:opacity-100 group-hover:pointer-events-auto"
             )} onClick={onToggleCollapse}>
               {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
             </Button>
@@ -99,23 +100,32 @@ export function Sidebar({ collapsed = false, mobileOpen = false, onToggleCollaps
           {navItems
             .filter(item => !item.permission || hasPermission(item.permission))
             .map((item) => (
-              <NavLink
+              <Link
                 key={item.path}
                 to={item.path}
                 title={item.label}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-                    compact && "justify-center px-0",
-                    isActive
-                      ? "bg-primary/10 text-primary shadow-sm"
-                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                  )
-                }
+                className={cn(
+                  "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                  compact && "justify-center px-0"
+                )}
+                activeProps={{
+                  className: "bg-primary/10 text-primary shadow-sm",
+                }}
+                onClick={() => {
+                  if (mobileOpen && onCloseMobile) {
+                    onCloseMobile();
+                  }
+                }}
+                inactiveProps={{
+                  className:
+                    "text-muted-foreground hover:bg-accent hover:text-foreground",
+                }}
               >
                 <item.icon className="w-5 h-5" />
-                <span className={cn('truncate', compact && 'hidden')}>{item.label}</span>
-              </NavLink>
+                <span className={cn("truncate", compact && "hidden")}>
+                  {item.label}
+                </span>
+              </Link>
             ))}
         </nav>
 

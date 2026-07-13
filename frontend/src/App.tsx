@@ -17,6 +17,7 @@ import {
   RouterProvider
 } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
+import Tasks from './pages/Tasks'
 
 
 
@@ -115,7 +116,7 @@ const departmentsRoute = createRoute({
   component: () => <RouteGuard permission="department:view"><Departments /></RouteGuard>,
 })
 
-const departmentDetailRoute = createRoute({
+export const departmentDetailRoute = createRoute({
   getParentRoute: () => appLayoutRoute,
   path: "departments/$id",
   component: () => <RouteGuard permission="department:view"><DepartmentDetail /></RouteGuard>,
@@ -123,7 +124,7 @@ const departmentDetailRoute = createRoute({
 
 // ---------------- Permissions ----------------
 
-const rolePermissionRoute = createRoute({
+export const rolePermissionRoute = createRoute({
   getParentRoute: () => appLayoutRoute,
   path: "permissions/$id",
   component: () => <RouteGuard permission="department:view"><RolePermission /></RouteGuard>,
@@ -167,6 +168,12 @@ const settingsRoute = createRoute({
   component: () => <RouteGuard permission="leave:type:edit"><Settings /></RouteGuard>,
 })
 
+const taskRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: "task",
+  component: () =><Tasks />,
+})
+
 // ---------------- Route Tree ----------------
 
 const routeTree = rootRoute.addChildren([
@@ -185,6 +192,7 @@ const routeTree = rootRoute.addChildren([
       kanbanRoute,
       projectsRoute,
       settingsRoute,
+      taskRoute
     ]),
   ]),
 ])

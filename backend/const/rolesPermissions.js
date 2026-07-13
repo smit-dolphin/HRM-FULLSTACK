@@ -93,6 +93,34 @@ export const availablePermissions = {
     { key: 'holiday:update', label: 'Edit Holidays' },
     { key: 'holiday:delete', label: 'Delete Holidays' },
   ],
+  Project: [
+  { key: 'project:list:view',      label: 'View Project List' },
+  { key: 'project:view',           label: 'View Project Details' },
+  { key: 'project:create',         label: 'Create Projects' },
+  { key: 'project:edit',           label: 'Edit Projects' },
+  { key: 'project:status:edit',    label: 'Update Project Status' },
+
+  { key: 'project:members:view',   label: 'View Project Members' },
+  { key: 'project:member:create',  label: 'Add Project Members' },
+  { key: 'project:member:delete',  label: 'Remove Project Members' },
+],
+Task: [
+  { key: 'task:list:view',      label: 'View All Tasks' },
+  { key: 'task:my-tasks:view',  label: 'View My Tasks' },
+  { key: 'task:view',           label: 'View Task Details' },
+  { key: 'task:create',         label: 'Create Tasks' },
+  { key: 'task:edit',           label: 'Edit Tasks' },
+  { key: 'task:status:edit',    label: 'Update Task Status' },
+  { key: 'task:delete',         label: 'Delete Tasks' },
+],
+
+TaskSession: [
+  { key: 'task-session:view',             label: 'View Active Task Session' },
+  { key: 'task-session:time:view',        label: 'View Active Session Time' },
+  { key: 'task-session:status:create',    label: 'Start Task Session' },
+  { key: 'task-session:status:pause',     label: 'Pause Task Session' },
+  { key: 'task-session:status:complete',  label: 'Complete Task Session' },
+],
   Permission: [
     { key: 'admin:permission:view', label: 'View Permissions' },
     { key: 'admin:permission:edit', label: 'Edit Permissions' },

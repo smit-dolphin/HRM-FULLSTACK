@@ -82,6 +82,11 @@ export async function fetchTasksService(
   return response.data
 }
 
+export async function fetchMyTasksService(): Promise<TaskListResponse> {
+  const response = await baseApi.get<TaskListResponse>('/task/my-tasks')
+  return response.data
+}
+
 export async function fetchTaskByIdService(
   id: string
 ): Promise<ApiResponse<Task>> {

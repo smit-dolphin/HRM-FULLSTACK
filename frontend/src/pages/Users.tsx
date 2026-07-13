@@ -89,7 +89,7 @@ export function Users() {
     placeholderData: (previousData) => previousData,
   })
 
-  const users = usersQuery.data?.data.map((user: User):UserRow => ({
+  const users = usersQuery.data?.data.map((user: User): UserRow => ({
     id: user.id,
     name: user.name,
     email: user.email,
@@ -219,7 +219,14 @@ export function Users() {
         const row = info.row.original
         const items: ActionMenuItem[] = []
         if (hasPermission('user:edit')) items.push({ label: 'Edit', onClick: () => handleOpenEdit(row) })
-        if (hasPermission('user:edit')) items.push({ label: 'Permissions', onClick: () => navigate({to:`/permissions/${row.id}`}) })
+        if (hasPermission('user:edit')) items.push({
+          label: 'Permissions', onClick: () => navigate({
+            to: "/permissions/$id",
+            params: {
+              id: row.id,
+            },
+          })
+        })
         if (hasPermission('user:delete')) items.push({ label: 'Deactivate', onClick: () => handleDeactivate(row.id) })
         if (hasPermission('user:delete')) items.push({ label: 'Delete', onClick: () => handleDelete(row.id), variant: 'danger' })
         if (!items.length) return null

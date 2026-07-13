@@ -1,5 +1,6 @@
 import React from 'react'
-import { useParams } from 'react-router-dom'
+// import { useParams } from 'react-router-dom'
+import { useParams } from '@tanstack/react-router'
 import { toast } from 'sonner'
 import type { AxiosError } from 'axios'
 import type { apiErrorDataShape } from '@/types/sharedTypes'
@@ -11,11 +12,13 @@ import {
   updateUserPermissionService,
   type PermissionGroups,
 } from '@/services/permissionService/permissionService'
+import { rolePermissionRoute } from '@/App'
 
 type PermissionState = Record<string, boolean>
 
 export function RolePermission() {
-  const { id: userId } = useParams<{ id: string }>()
+   
+  const { id: userId } = rolePermissionRoute.useParams()
   const [permissionGroups, setPermissionGroups] = React.useState<PermissionGroups>({})
   const [selectedPermissions, setSelectedPermissions] = React.useState<PermissionState>({})
   const [loading, setLoading] = React.useState(true)

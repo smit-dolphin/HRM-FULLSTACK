@@ -22,6 +22,7 @@ import {
 import { createDesignationSchema, updateDesignationSchema, type CreateDesignationFormData, type UpdateDesignationFormData } from '@/schemas/designation.schema'
 import type { apiErrorDataShape } from '@/types/sharedTypes'
 import type { AxiosError } from 'axios'
+import { departmentDetailRoute } from '@/App'
 
 type DesignationRow = {
   id: string
@@ -31,7 +32,7 @@ type DesignationRow = {
 const columnHelper = createColumnHelper<DesignationRow>()
 
 export function DepartmentDetail() {
-  const { id: departmentId } = useParams({from:`departments/$id`})
+  const { id: departmentId } = departmentDetailRoute.useParams()
   const navigate = useNavigate()
   const { hasPermission } = useAuthStore()
 

@@ -14,7 +14,10 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { useAuthStore } from '@/store/useAuthStore'
 import { cn } from '@/utils/cn'
-
+import { useQuery } from '@tanstack/react-query'
+import { activeTaskSessionQueryOptions, useCurrentElepsedTimeTaskSession, useStartTaskSession, usePauseTaskSession, useCompleteTaskSession } from '@/querryOptions/taskSessionOptions'
+import { fetchMyTasksService } from '@/services/taskService/taskService'
+import { useTaskStore } from '@/store/useTaskStore'
 type HeaderProps = {
   collapsed?: boolean
   onToggleCollapse?: () => void
@@ -31,75 +34,140 @@ interface TimerTask {
 }
 
 // Dummy tasks for UI - will be replaced with real data later
-const initialTasks: TimerTask[] = [
-  { id: '1', name: 'Design landing page', project: 'Website Redesign', status: 'paused' },
-  { id: '2', name: 'Fix login bug', project: 'HRM App', status: 'paused' },
-  { id: '3', name: 'Write API docs', project: 'Backend Services', status: 'paused' },
-  { id: '4', name: 'Setup CI/CD pipeline', project: 'DevOps', status: 'paused' },
-]
+// const initialTasks: TimerTask[] = [
+//   { id: '1', name: 'Design landing page', project: 'Website Redesign', status: 'paused' },
+//   { id: '2', name: 'Fix login bug', project: 'HRM App', status: 'paused' },
+//   { id: '3', name: 'Write API docs', project: 'Backend Services', status: 'paused' },
+//   { id: '4', name: 'Setup CI/CD pipeline', project: 'DevOps', status: 'paused' },
+// ]
+// Removed dummy tasks state
+
+
+const TimerFormateHourMinutSecondHelper = (sec: number) => {
+
+  const hours = Math.floor(sec / 3600)
+  const minutes = Math.floor((sec % 3600) / 60)
+  const seconds = sec % 60
+
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+}
 
 export function Header({
   collapsed = false,
   onOpenMobile,
 }: HeaderProps) {
   const { user } = useAuthStore()
-  const [tasks, setTasks] = React.useState<TimerTask[]>(initialTasks)
+  const myTasksQuery = useQuery({
+    queryKey: ['myTasks'],
+    queryFn: () => fetchMyTasksService(),
+  })
+  
+  const { tasks:activeTasks,currentTask,addTask, setCurrentTask, clearCurrentTask } = useTaskStore()
+  // const tasks = myTasksQuery.data?.data || []
+  const tasks = activeTasks || []
 
-  const runningTask = tasks.find(t => t.status === 'running')
+  const activeSessionQuery = useQuery(activeTaskSessionQueryOptions)
+  const activeSession = activeSessionQuery.data
 
-  // Play a task: pause any currently running task, then start this one
-  const handlePlay = (taskId: string) => {
-    setTasks(prev =>
-      prev.map(t => {
-        if (t.id === taskId) return { ...t, status: 'running' as const }
-        if (t.status === 'running') return { ...t, status: 'paused' as const }
-        return t
-      })
-    )
+  const startTask = useStartTaskSession()
+  const pauseTask = usePauseTaskSession()
+  const completeTask = useCompleteTaskSession()
+
+  // Sync active backend session with local store
+  React.useEffect(() => {
+    if (activeSession && activeSession.taskSessionStatus === 'running') {
+      const t = tasks.find(t => t.id === activeSession.taskId)
+      if (t) addTask(t)
+        // setCurrentTask(t)
+    } else if (activeSession && activeSession.taskSessionStatus === 'completed') {
+      clearCurrentTask()
+    }
+  }, [activeSession,addTask, tasks, setCurrentTask, clearCurrentTask])
+
+  // this part store current task
+  const runningTask = activeSession && activeSession.taskSessionStatus === 'running'
+    ? activeSession.task
+    : undefined
+
+  const handlePlay = (taskToPlay: any) => {
+    setCurrentTask(taskToPlay)
+    startTask.mutate(taskToPlay.id || taskToPlay.taskId)
   }
 
-  // Pause a specific task
   const handlePause = (taskId: string) => {
-    setTasks(prev =>
-      prev.map(t => t.id === taskId ? { ...t, status: 'paused' as const } : t)
-    )
+    pauseTask.mutate(taskId)
   }
 
-  // Stop the running task (pause it, no active task)
   const handleStop = () => {
-    setTasks(prev =>
-      prev.map(t => t.status === 'running' ? { ...t, status: 'paused' as const } : t)
-    )
+    if (activeSession?.taskId) {
+      completeTask.mutate(activeSession.taskId)
+      clearCurrentTask()
+    }
   }
 
-  // Header bar play/pause toggle for the running task
+
+
+
   const handleHeaderToggle = () => {
     if (runningTask) {
-      handlePause(runningTask.id)
-    } else {
-      // Resume the first paused task (or do nothing if no tasks)
-      const firstPaused = tasks.find(t => t.status === 'paused')
-      if (firstPaused) handlePlay(firstPaused.id)
+      handlePause(runningTask.id || activeSession.taskId)
+    } else if (currentTask) {
+      handlePlay(currentTask)
+    } else if (activeSession?.taskId) {
+      handlePlay({ id: activeSession.taskId })
+    } else if (tasks.length > 0) {
+      handlePlay(tasks[0])
     }
   }
 
-  const [currentTime,setCurrentTime]=React.useState<string>("00:00:00")
+  const currenttimeres = useQuery(useCurrentElepsedTimeTaskSession)
 
+  const serverElapsedSeconds =
+    currenttimeres.data?.data.totalElepsedTimeSeconds ?? 0
 
-  React.useEffect(()=>{
-    if(runningTask){
-      
-      const timer = setInterval(() => {
-        const now = new Date()
-        setCurrentTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
-      }, 1000)
-  
-      return () => clearInterval(timer)
+  // Local timer state
+  const [elapsedSeconds, setElapsedSeconds] = React.useState(serverElapsedSeconds)
+
+  // Whenever backend data changes (initial load/refetch),
+  // sync the local timer.
+  React.useEffect(() => {
+    setElapsedSeconds(serverElapsedSeconds)
+  }, [serverElapsedSeconds])
+
+  const currentTaskStatus =
+    currenttimeres.data?.data.currentTaskStatus as
+    | 'running'
+    | 'paused'
+    | 'completed'
+    | undefined
+
+  React.useEffect(() => {
+    if (currentTaskStatus !== 'running') {
+      setElapsedSeconds(serverElapsedSeconds)
+      return
     }
-    else{
-      return () => {}
-    }
-  },[runningTask,currentTime])
+
+    setElapsedSeconds(prev =>
+      serverElapsedSeconds > prev ? serverElapsedSeconds : prev
+    )
+  }, [serverElapsedSeconds, currentTaskStatus,addTask])
+
+  // Increment only while running.
+  React.useEffect(() => {
+    if (!activeSession) return
+    if (currentTaskStatus !== 'running') return
+
+    const interval = setInterval(() => {
+      setElapsedSeconds(prev => prev + 1)
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [currentTaskStatus])
+
+  // Format only when displaying.
+  const currentTime = React.useMemo(() => {
+    return TimerFormateHourMinutSecondHelper(elapsedSeconds)
+  }, [elapsedSeconds])
 
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-card/85 px-4 py-1 backdrop-blur-xl md:px-6">
@@ -167,7 +235,6 @@ export function Header({
                   <Pause className="h-4 w-4 fill-current text-amber-600" />
                 )}
               </Button>
-
               <Button
                 variant="ghost"
                 className="h-10 rounded-none border-l px-3"
@@ -186,8 +253,8 @@ export function Header({
 
               {/* Task List */}
               <div className="max-h-64 overflow-y-auto py-1">
-                {tasks.map((task) => {
-                  const isTaskRunning = task.status === 'running'
+                {tasks.map((task: any) => {
+                  const isTaskRunning = activeSession?.taskId === task.id && activeSession?.taskSessionStatus === 'running'
 
                   return (
                     <div
@@ -210,7 +277,7 @@ export function Header({
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <FolderKanban className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                           <p className="text-xs text-muted-foreground truncate">
-                            {task.project}
+                            {task.project?.name || 'No Project'}
                           </p>
                         </div>
                       </div>
@@ -235,7 +302,7 @@ export function Header({
                           if (isTaskRunning) {
                             handlePause(task.id)
                           } else {
-                            handlePlay(task.id)
+                            handlePlay(task)
                           }
                         }}
                       >
@@ -260,7 +327,7 @@ export function Header({
             <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-destructive" />
           </Button>
 
-          <div className="flex items-center gap-3 rounded-full border border-border bg-card px-3 py-1.5 shadow-sm">
+          <div className="flex items-center gap-3 rounded-full border border-border bg-card px-4 py-1.5 shadow-sm">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
               <CircleUserRound className="h-5 w-5" />
             </div>
@@ -275,7 +342,7 @@ export function Header({
               </p>
             </div>
 
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            {/* <ChevronDown className="h-4 w-4 text-muted-foreground" /> */}
           </div>
         </div>
       </div>

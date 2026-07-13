@@ -27,39 +27,39 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   devtools(
-  persist(
-    (set, get) => ({
-      user: null,
-      isAuthenticated: false,
-      permissions: [],
-      login: (user) => set({
-        user,
-        isAuthenticated: true,
-        permissions: user.permissions || [],
+    persist(
+      (set, get) => ({
+        user: null,
+        isAuthenticated: false,
+        permissions: [],
+        login: (user) => set({
+          user,
+          isAuthenticated: true,
+          permissions: user.permissions || [],
 
-      }),
-      logout: async () => {
-        try {
-          const res = await signoutService();
-          toast.success(res.message);
-        } catch {
-          toast.error("Logout failed");
-        } finally {
+        }),
+        logout: async () => {
+          try {
+            const res = await signoutService();
+            toast.success(res.message);
+          } catch {
+            toast.error("Logout failed");
+          } finally {
+            set({ user: null, isAuthenticated: false, permissions: [] });
+          }
+        },
+        clearAuth: () => {
           set({ user: null, isAuthenticated: false, permissions: [] });
-        }
-      },
-      clearAuth: () => {
-        set({ user: null, isAuthenticated: false, permissions: [] });
-      },
-      hasPermission: (permission: string) => {
+        },
+        hasPermission: (permission: string) => {
 
-        const perms = get().permissions;
-        if (!perms) return false;
-        if (Array.isArray(perms)) return perms.includes(permission);
-        if (typeof perms === 'object') return Boolean((perms as Record<string, boolean>)[permission]);
-        return false;
-      },
-    }),
-    { name: "auth-storage" }
-  )
-))
+          const perms = get().permissions;
+          if (!perms) return false;
+          if (Array.isArray(perms)) return perms.includes(permission);
+          if (typeof perms === 'object') return Boolean((perms as Record<string, boolean>)[permission]);
+          return false;
+        },
+      }),
+      { name: "auth-storage" }
+    )
+  ))

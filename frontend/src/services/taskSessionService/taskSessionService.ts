@@ -10,12 +10,45 @@ export interface TaskSession {
   totalSeconds?: number
   createdAt?: string
   updatedAt?: string
+  task?: {
+    id: string
+    name: string
+    projectId: string
+    project?: {
+      id: string
+      name: string
+    }
+  }
+}
+
+export interface TaskSessionTimeSummary {
+  totalSeconds: number
+  TotalBreaksSeconds: number
+  totalElepsedTimeSeconds: number
+  currentTaskStatus:"running"|"paused"|"completed"
 }
 
 export interface ApiResponse<T = unknown> {
   success: boolean
   message: string
   data: T
+}
+
+export async function getActiveTaskSessionService(): Promise<ApiResponse<TaskSession | null>> {
+  const response = await baseApi.get<ApiResponse<TaskSession | null>>(
+    '/task-session/active'
+  )
+  return response.data
+}
+
+export async function getActiveSessionsTimeService(): Promise<
+  ApiResponse<TaskSessionTimeSummary>
+> {
+  const response = await baseApi.get<ApiResponse<TaskSessionTimeSummary>>(
+    '/task-session/active-sessions-time'
+  )
+
+  return response.data
 }
 
 export async function startTaskSessionService(

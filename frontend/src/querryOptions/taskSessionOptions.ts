@@ -1,17 +1,24 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient, queryOptions } from '@tanstack/react-query'
 import {
   startTaskSessionService,
   pauseTaskSessionService,
-  completeTaskSessionService
+  completeTaskSessionService,
+  getActiveTaskSessionService,
+  getActiveSessionsTimeService
 } from '@/services/taskSessionService/taskSessionService'
+
+export const activeTaskSessionQueryOptions = queryOptions({
+  queryKey: ['taskSessions', 'active'],
+  queryFn: () => getActiveTaskSessionService().then(res => res.data),
+})
 
 export function useStartTaskSession() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (taskId: string) => startTaskSessionService(taskId),
     onSuccess: () => {
-      // Invalidate relevant queries like active task session, task lists, etc.
       queryClient.invalidateQueries({ queryKey: ['taskSessions'] })
+      queryClient.invalidateQueries({ queryKey: ['active-time'] })
     }
   })
 }
@@ -22,6 +29,7 @@ export function usePauseTaskSession() {
     mutationFn: (taskId: string) => pauseTaskSessionService(taskId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['taskSessions'] })
+      queryClient.invalidateQueries({ queryKey: ['active-time'] })
     }
   })
 }
@@ -32,6 +40,13 @@ export function useCompleteTaskSession() {
     mutationFn: (taskId: string) => completeTaskSessionService(taskId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['taskSessions'] })
+      queryClient.invalidateQueries({ queryKey: ['active-time'] })
     }
   })
 }
+
+export const useCurrentElepsedTimeTaskSession=queryOptions({
+  queryKey:['active-time'],
+  queryFn:getActiveSessionsTimeService,
+  
+})

@@ -353,17 +353,17 @@ export const pauseTaskSession = async (req, res) => {
       return errorResponse(res, 404, "Employee not found");
     }
 
-   
+
 
     // 1. Find latest active session (running or paused)
     const session = await prisma.taskSessionTimer.findFirst({
       where: {
         taskId,
         employeeId: employee.id,
-        taskSessionStatus:"running"
-        
+        taskSessionStatus: "running"
+
       },
-      orderBy: { createdAt: "desc" }
+      orderBy: { updatedAt: "desc" }
     });
 
     if (!session) {
@@ -419,7 +419,7 @@ export const stopTaskSession = async (req, res) => {
         }
       },
       orderBy: {
-        createdAt: "desc"
+        updatedAt: "desc"
       }
     });
 
@@ -467,3 +467,181 @@ export const stopTaskSession = async (req, res) => {
     return errorResponse(res, 500, "Something went wrong", error.message);
   }
 };
+
+export const getActiveTaskSession = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const employee = await prisma.employee.findUnique({
+      where: { userId }
+    });
+
+    if (!employee) {
+      return errorResponse(res, 404, "Employee not found");
+    }
+
+    const activeSession = await prisma.taskSessionTimer.findFirst({
+      where: {
+        employeeId: employee.id,
+        endTime: null,
+        taskSessionStatus: {
+          in: ["running", "paused"]
+        }
+      },
+      include: {
+        task: {
+          include: {
+            project: true
+          }
+        },
+        break: true
+      },
+      orderBy: {
+        updatedAt: "desc"
+      }
+    });
+
+    return successResponse(res, 200, "Active session retrieved", activeSession);
+  } catch (error) {
+    return errorResponse(res, 500, "Something went wrong", error.message);
+  }
+};
+
+
+export const getActiveSessionsTime = async (req, res) => {
+  try {
+    //i have to calculate all time and return it here for timer response
+    // i can do is calculate total sec of all completed tasks which have endtime
+    // calculate all breakes
+
+    const userId = req.user.id
+    const currentEmployee = await getCurrentEmployeeByUserId(userId)
+    const elepsedTime = await calculateTotalTimeOfAllCurrentActiveTaskSessions(currentEmployee.id)
+
+    return successResponse(res, 200, "total time calculated", elepsedTime)
+
+
+
+  } catch (error) {
+    return errorResponse(res, 500, "Something went wrong", error.message);
+  }
+}
+
+
+async function getCurrentEmployeeByUserId(userId) {
+  const employee = await prisma.employee.findUnique({ where: { userId } })
+  return employee
+}
+
+async function calculateTotalTimeOfAllCurrentActiveTaskSessions(employeeId) {
+
+  //get all task first which have completed and date is today 
+  // new Date().get month()
+  let totalSeconds = 0
+  let TotalBreaksSeconds = 0
+  let currentTaskStatus = "running"
+
+
+  const completedOrPausedtasks = await prisma.taskSessionTimer.findMany({
+    where: {
+      taskSessionStatus: { in: ["completed", "paused"] },
+      employeeId
+      ,
+      startTime: {
+        gte: new Date(new Date().setHours(0, 0, 0, 0))
+      }
+    },
+    include: {
+      break: true
+    }
+  })
+
+  const resumedTasks = await prisma.taskSessionTimer.findMany({
+    where: {
+      taskSessionStatus: "running",
+      employeeId,
+      startTime: {
+        gte: new Date(new Date().setHours(0, 0, 0, 0))
+      }
+    },
+    include: {
+      break: true
+    }
+  })
+
+  for (const task of completedOrPausedtasks) {
+    if (task.taskSessionStatus === "completed") {
+      // Calculate the difference in milliseconds
+      const diffInMs = task.endTime - task.startTime;
+      // Convert milliseconds to seconds
+      const diffInSeconds = Math.floor(diffInMs / 1000);
+      totalSeconds += diffInSeconds
+      currentTaskStatus = task.taskSessionStatus
+
+      for (const brk of task.break) {
+        if (brk.endedAt) {
+          const breakDiffInMs = brk.endedAt - brk.startedAt;
+          const breakDiffInSeconds = Math.floor(breakDiffInMs / 1000);
+          TotalBreaksSeconds += breakDiffInSeconds
+        }
+      }
+    }
+
+    if (task.taskSessionStatus === "paused") {
+      // Calculate the difference in milliseconds
+
+      let breakStartTimeSec = new Date()
+      currentTaskStatus = task.taskSessionStatus
+
+
+      for (const brk of task.break) {
+        if (brk.endedAt) {
+          const breakDiffInMs = brk.endedAt - brk.startedAt;
+          const breakDiffInSeconds = Math.floor(breakDiffInMs / 1000);
+          TotalBreaksSeconds += breakDiffInSeconds
+        }
+        if (!brk.endedAt) {
+          // const breakDiffInMs = new Date() - brk.startedAt;
+          // const breakDiffInSeconds = Math.floor(breakDiffInMs / 1000);
+          // TotalBreaksSeconds+=breakDiffInSeconds
+          breakStartTimeSec = brk.startedAt
+        }
+      }
+
+      const diffInMs = breakStartTimeSec - task.startTime;
+      // Convert milliseconds to seconds
+      const diffInSeconds = Math.floor(diffInMs / 1000);
+      totalSeconds += diffInSeconds
+    }
+
+  }
+  for (const task of resumedTasks) {
+
+    for (const brk of task.break) {
+      if (brk.endedAt) {
+        const breakDiffInMs = brk.endedAt - brk.startedAt;
+        const breakDiffInSeconds = Math.floor(breakDiffInMs / 1000);
+        TotalBreaksSeconds += breakDiffInSeconds
+
+      }
+    }
+
+    const diffInMs = new Date() - task.startTime;
+    const diffInSeconds = Math.floor(diffInMs / 1000);
+    totalSeconds += diffInSeconds
+    currentTaskStatus = task.taskSessionStatus
+  }
+
+
+  const totalElepsedTimeSeconds =
+    totalSeconds - TotalBreaksSeconds
+
+
+  return {
+    totalSeconds,
+    TotalBreaksSeconds,
+    totalElepsedTimeSeconds,
+    currentTaskStatus
+  }
+
+}

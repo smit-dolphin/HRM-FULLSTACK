@@ -14,7 +14,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 px-4 py-8">
+    <div className="min-h-screen bg-slate- 100 bg-card px-4 py-8">
       {/* <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl items-center gap-8 lg:grid-cols-2">
         <div className="space-y-6">
           <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
@@ -45,7 +45,7 @@ export function LoginPage() {
 
         <LoginForm onSuccess={() => navigate('/', { replace: true })} />
       </div> */}
-      <div className="min-h-[90vh] bg-slate-100 px-4 flex items-center justify-center">
+      <div className="min-h-[90vh] bg-slate- 100 bg-card px-4 flex items-center justify-center">
         <div className="w-full max-w-md">
           <div className="rounded-2xl p-6 sm:p-8">
             <LoginForm onSuccess={() => navigate({ to:'/',replace: true })} />

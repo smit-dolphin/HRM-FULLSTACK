@@ -22,16 +22,18 @@ import { useTheme } from 'next-themes';
 import { useAuthStore } from '@/store/useAuthStore';
 import { cn } from '@/utils/cn';
 import { Button } from '@/components/ui/button';
+import { useTaskStore } from '@/store/useTaskStore';
 
 const navItems: { icon: any; label: string; path: string; permission?: string }[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
+  { icon: Plus, label: 'Tasks', path: '/task', permission: 'task:list:view' },
   { icon: UserRound, label: 'Users', path: '/users', permission: 'user:view' },
   { icon: Users, label: 'Employees', path: '/employees', permission: 'employee:view' },
   { icon: Building2, label: 'Departments', path: '/departments', permission: 'department:view' },
   { icon: CalendarDays, label: 'Leaves', path: '/leaves', permission: 'leave:request:view_own' },
   { icon: CalendarRange, label: 'Holidays', path: '/holidays', permission: 'holiday:view' },
-  { icon: Plus, label: 'projects', path: '/projects' },
-  { icon: Plus, label: 'Kanban Board', path: '/kanban' },
+  { icon: Plus, label: 'projects', path: '/projects', permission: 'project:list:view' },
+  { icon: Plus, label: 'Kanban Board', path: '/kanban', permission: 'task:list:view' },
   { icon: Settings, label: 'Settings', path: '/settings', permission: 'leave:type:manage' },
 ];
 
@@ -45,6 +47,7 @@ type SidebarProps = {
 
 export function Sidebar({ collapsed = false, mobileOpen = false, onToggleCollapse, onCloseMobile, onCollapse }: SidebarProps) {
   const { user, logout, hasPermission } = useAuthStore();
+  const { clearTasks } = useTaskStore()
   const { theme, setTheme } = useTheme();
   void onCollapse;
 
@@ -74,7 +77,7 @@ export function Sidebar({ collapsed = false, mobileOpen = false, onToggleCollaps
               <BriefcaseBusiness className="h-5 w-5" />
             </div>
             <Button variant="ghost" size="icon" className={cn(
-              "absolute inset-0 m-auto hidden md:inline-flex opacity-0 transition-opacity duration-200 pointer-events-none",
+              "absolute inset-0 m-auto hidden md:inline-flex opacity-0 transition-opacity duration-200 pointer-events-none ",
               compact && "group-hover:opacity-100 group-hover:pointer-events-auto"
             )} onClick={onToggleCollapse}>
               {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
@@ -85,7 +88,7 @@ export function Sidebar({ collapsed = false, mobileOpen = false, onToggleCollaps
               <p className="truncate text-xs text-muted-foreground">People operations</p>
 
             </div>
-            {!collapsed && <Button variant="ghost" size="icon" className="hidden md:inline-flex" onClick={onToggleCollapse}>
+            {!collapsed && <Button variant="ghost" size="icon" className="hidden md:inline-flex ml-5" onClick={onToggleCollapse}>
               {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
             </Button>}
           </div>
@@ -154,7 +157,14 @@ export function Sidebar({ collapsed = false, mobileOpen = false, onToggleCollaps
           </Button>
 
 
-          <Button variant="outline" className={cn('w-full justify-start gap-2 rounded-xl border-border bg-transparent text-foreground hover:bg-accent', compact ? 'justify-center' : '')} onClick={logout}>
+          <Button variant="outline" className={cn('w-full justify-start gap-2 rounded-xl border-border bg-transparent text-foreground hover:bg-accent', compact ? 'justify-center' : '')}
+            onClick={
+              () => {
+                logout();
+                clearTasks();
+              }
+            }
+          >
             <LogOut className="w-4 h-4" />
             {!compact && 'Logout'}
           </Button>

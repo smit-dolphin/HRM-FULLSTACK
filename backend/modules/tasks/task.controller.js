@@ -164,6 +164,38 @@ export const getAllTasks = async (req, res) => {
   }
 };
 
+export const getMyTasks = async (req, res) => {
+  try {
+    const currentEmployee = await prisma.employee.findUnique({
+      where: { userId: req.user.id },
+    });
+
+    if (!currentEmployee) {
+      return errorResponse(res, 404, "Not found", "Employee record not found.");
+    }
+
+    const tasks = await prisma.task.findMany({
+      where: {
+        OR: [
+          { ownerId: currentEmployee.id },
+          { assigneeId: currentEmployee.id },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+      include: {
+        project: true,
+        owner: { include: { user: true } },
+        manager: { include: { user: true } },
+        assignee: { include: { user: true } },
+      },
+    });
+
+    return successResponse(res, 200, "My tasks fetched successfully", tasks);
+  } catch (error) {
+    return errorResponse(res, 500, "Something went wrong", error.message);
+  }
+};
+
 export const getTaskById = async (req, res) => {
   try {
     const { id } = req.params;

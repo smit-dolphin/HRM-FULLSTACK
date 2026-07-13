@@ -1,8 +1,10 @@
 import * as React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet } from '@tanstack/react-router';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { useAuthStore } from '@/store/useAuthStore';
+import { Suspense } from 'react';
+import { PageLoader } from '@/components/ui/PageLoader';
 
 export function AppLayout() {
   const { isAuthenticated } = useAuthStore();
@@ -31,9 +33,11 @@ export function AppLayout() {
           onOpenMobile={() => setMobileOpen(true)}
         />
 
-        <main className="flex-1 overflow-auto px-4 py-5 md:px-6 md:py-6 lg:px-8">
+        <main className="flex-1 overflow-auto px-4 py-5 md:px-6 md:py-6 lg:px-8 ">
           <div className="w-full">
-            <Outlet />
+            <Suspense fallback={<PageLoader />}>
+              <Outlet />
+            </Suspense>
           </div>
         </main>
       </div>

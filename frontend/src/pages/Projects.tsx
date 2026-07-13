@@ -32,7 +32,6 @@ export function Projects() {
   const [taskDialogOpen, setTaskDialogOpen] = React.useState(false)
   const [memberDialogOpen, setMemberDialogOpen] = React.useState(false)
   const [selectedProject, setSelectedProject] = React.useState<Project | null>(null)
-  const [projectMembers, setProjectMembers] = React.useState<Record<string, ProjectMember[]>>({})
 
   const projectForm = useForm<ProjectFormValues>({
     defaultValues: { name: '', description: '' },
@@ -68,29 +67,23 @@ export function Projects() {
   const projectOptions = projects.map((project) => ({ value: project.id, label: project.name }))
   const employeeOptions = employees.map((employee) => ({
     value: employee.id,
-    label: `${employee.user?.name ?? 'Employee'} (${employee.user?.email ?? ''})`,
+    label: `${employee.user?.firstName ?? ''} ${employee.user?.lastName ?? ''} (${employee.user?.email ?? ''})`,
   }))
 
-  const employeeNameMap = React.useMemo(() => {
-    return employees.reduce<Record<string, string>>((acc, employee) => {
-      acc[employee.id] = employee.user?.name ?? 'Employee'
-      return acc
-    }, {})
-  }, [employees])
-
-  const projectMembersQuery = useQuery({
-    queryKey: ['project-members', selectedProject?.id],
-    queryFn: () => fetchProjectMembersService(selectedProject!.id),
-    enabled: !!selectedProject?.id,
-  })
-
-  React.useEffect(() => {
-    if (selectedProject?.id && projectMembersQuery.data?.data) {
-      setProjectMembers((prev) => ({ ...prev, [selectedProject.id]: projectMembersQuery.data.data }))
-    }
-  }, [projectMembersQuery.data, selectedProject?.id])
+  // Dynamically filter employees to assign to task based on project membership
+  const watchedProjectId = taskForm.watch('projectId')
+  const taskProjectMembersOptions = React.useMemo(() => {
+    if (!watchedProjectId) return []
+    const project = projects.find(p => p.id === watchedProjectId)
+    if (!project || !project.members) return []
+    return project.members.map((m: any) => ({
+      value: m.employee.id,
+      label: `${m.employee.user?.firstName ?? ''} ${m.employee.user?.lastName ?? ''} (${m.employee.user?.email ?? ''})`,
+    }))
+  }, [watchedProjectId, projects])
 
   const createProjectMutation = useMutation({
+    queryKey: ['create-project'],
     mutationFn: createProjectService,
     onSuccess: () => {
       toast.success('Project created successfully')
@@ -119,33 +112,11 @@ export function Projects() {
   const assignMemberMutation = useMutation({
     mutationFn: ({ projectId, employeeId }: { projectId: string; employeeId: string }) =>
       addProjectMemberService(projectId, { employeeId }),
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       toast.success('Employee assigned to project')
-      setProjectMembers((prev) => ({
-        ...prev,
-        [variables.projectId]: [
-          ...(prev[variables.projectId] ?? []),
-          {
-            projectId: variables.projectId,
-            employeeId: variables.employeeId,
-            employee: {
-              id: variables.employeeId,
-              departmentId: '',
-              designationId: '',
-              user: {
-                id: variables.employeeId,
-                firstName: employeeNameMap[variables.employeeId] ?? 'Employee',
-                lastName: '',
-                email: '',
-              },
-            },
-          },
-        ],
-      }))
       setMemberDialogOpen(false)
       memberForm.reset()
       querryClient.invalidateQueries({ queryKey: ['projects'] })
-      querryClient.invalidateQueries({ queryKey: ['project-members'] })
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Failed to assign employee')
@@ -155,13 +126,9 @@ export function Projects() {
   const removeMemberMutation = useMutation({
     mutationFn: ({ projectId, employeeId }: { projectId: string; employeeId: string }) =>
       removeProjectMemberService(projectId, employeeId),
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       toast.success('Member removed from project')
-      setProjectMembers((prev) => ({
-        ...prev,
-        [variables.projectId]: (prev[variables.projectId] ?? []).filter((member) => member.employeeId !== variables.employeeId),
-      }))
-      querryClient.invalidateQueries({ queryKey: ['project-members'] })
+      querryClient.invalidateQueries({ queryKey: ['projects'] })
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Failed to remove member')
@@ -184,6 +151,7 @@ export function Projects() {
   const handleOpenTaskDialog = (project: Project) => {
     setSelectedProject(project)
     taskForm.setValue('projectId', project.id)
+    taskForm.setValue('ownerId', '')
     setTaskDialogOpen(true)
   }
 
@@ -201,6 +169,13 @@ export function Projects() {
     if (!selectedProject) return
     assignMemberMutation.mutate({ projectId: selectedProject.id, employeeId: values.employeeId })
   }
+
+  // Filter employees who are not already project members for the Assign Member form
+  const assignMemberOptions = React.useMemo(() => {
+    if (!selectedProject || !selectedProject.members) return employeeOptions
+    const assignedIds = new Set(selectedProject.members.map((m: any) => m.employeeId))
+    return employeeOptions.filter(opt => !assignedIds.has(opt.value))
+  }, [selectedProject, employeeOptions])
 
   return (
     <div className="space-y-6">
@@ -246,7 +221,7 @@ export function Projects() {
         ) : (
           projects.map((project) => {
             const projectTasks = tasks.filter((task) => task.projectId === project.id)
-            const members = projectMembers[project.id] ?? []
+            const members = project.members ?? []
 
             return (
               <div key={project.id} className="rounded-2xl border bg-card p-5 shadow-sm">
@@ -424,8 +399,9 @@ export function Projects() {
           <FormField label="Assign to employee" required error={taskForm.formState.errors.ownerId?.message}>
             <FormSelect
               {...taskForm.register('ownerId', { required: 'Please select an employee' })}
-              options={employeeOptions}
-              placeholder="Select employee"
+              options={taskProjectMembersOptions}
+              placeholder={taskProjectMembersOptions.length === 0 ? "No members in this project yet" : "Select employee"}
+              disabled={taskProjectMembersOptions.length === 0}
             />
           </FormField>
 
@@ -456,8 +432,9 @@ export function Projects() {
           <FormField label="Employee" required error={memberForm.formState.errors.employeeId?.message}>
             <FormSelect
               {...memberForm.register('employeeId', { required: 'Please select an employee' })}
-              options={employeeOptions}
-              placeholder="Select employee"
+              options={assignMemberOptions}
+              placeholder={assignMemberOptions.length === 0 ? "All employees assigned" : "Select employee"}
+              disabled={assignMemberOptions.length === 0}
             />
           </FormField>
 

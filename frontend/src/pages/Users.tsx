@@ -1,6 +1,7 @@
 import React from 'react'
 import { createColumnHelper } from '@tanstack/react-table'
-import { useNavigate } from 'react-router-dom'
+// import { useNavigate } from 'react-router-dom'
+import { useNavigate } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
 import { Download, Plus, ArrowUpDown, ChevronLeft, ChevronRight, Search, Filter, X } from 'lucide-react'
 import { useForm } from 'react-hook-form'
@@ -88,13 +89,13 @@ export function Users() {
     placeholderData: (previousData) => previousData,
   })
 
-  const users = usersQuery.data?.data.map((user: User) => ({
+  const users = usersQuery.data?.data.map((user: User): UserRow => ({
     id: user.id,
     name: user.name,
     email: user.email,
     role: user.role,
     isActive: user.isActive,
-    status: user.isActive ? 'Active' : 'Inactive',
+    status: user.isActive ? "Active" : "Inactive",
     createdAt: user.createdAt,
   })) ?? []
 
@@ -218,7 +219,14 @@ export function Users() {
         const row = info.row.original
         const items: ActionMenuItem[] = []
         if (hasPermission('user:edit')) items.push({ label: 'Edit', onClick: () => handleOpenEdit(row) })
-        if (hasPermission('user:edit')) items.push({ label: 'Permissions', onClick: () => navigate(`/permissions/${row.id}`) })
+        if (hasPermission('user:edit')) items.push({
+          label: 'Permissions', onClick: () => navigate({
+            to: "/permissions/$id",
+            params: {
+              id: row.id,
+            },
+          })
+        })
         if (hasPermission('user:delete')) items.push({ label: 'Deactivate', onClick: () => handleDeactivate(row.id) })
         if (hasPermission('user:delete')) items.push({ label: 'Delete', onClick: () => handleDelete(row.id), variant: 'danger' })
         if (!items.length) return null
@@ -349,7 +357,7 @@ export function Users() {
       <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Items per page</span>
-          <div className="min-w-[140px]">
+          <div className="min-w-35">
             <FormSelect
               value={String(query.limit ?? 5)}
               onChange={(e) => setQueryValue('limit', Number(e.target.value))}

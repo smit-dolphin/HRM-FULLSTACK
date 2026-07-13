@@ -4,7 +4,8 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/utils/cn'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { fetchTasksService, updateTaskStatusService } from '@/services/taskService/taskService'
+import { fetchTasksService, updateTaskStatusService, type Task } from '@/services/taskService/taskService'
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 
 interface TaskShape {
   id: string
@@ -91,7 +92,7 @@ interface TaskListResponse {
 
         return {
           ...old,
-          data: old.data.map((task) =>
+          data: old.data.map((task:Task) =>
             task.id === taskId
               ? {
                   ...task,
@@ -215,9 +216,78 @@ interface TaskListResponse {
                     >
                       <div className="flex items-start justify-between">
                         <h3 className="text-sm font-semibold">{task.name}</h3>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
+                        <Popover>
+  <PopoverTrigger >
+    <Button
+      variant="ghost"
+      size="icon"
+      className="h-8 w-8 rounded-full"
+    >
+      <MoreHorizontal className="h-4 w-4" />
+    </Button>
+  </PopoverTrigger>
+
+  <PopoverContent
+    
+    className="w-12 p-1"
+  >
+    <button
+      className="flex w-5 items-center rounded-md px-3 py-2 text-sm hover:bg-accent"
+      onClick={() => {
+        console.log("Start", task.id)
+      }}
+    >
+      ▶ Start Task
+    </button>
+
+    {/* <button
+      className="flex w-full items-center rounded-md px-3 py-2 text-sm hover:bg-accent"
+      onClick={() => {
+        console.log("Pause", task.id)
+      }}
+    >
+      ⏸ Pause Task
+    </button> */}
+{/* 
+    <button
+      className="flex w-full items-center rounded-md px-3 py-2 text-sm hover:bg-accent"
+      onClick={() => {
+        console.log("Resume", task.id)
+      }}
+    >
+      ↻ Resume Task
+    </button> */}
+{/* 
+    <button
+      className="flex w-full items-center rounded-md px-3 py-2 text-sm hover:bg-accent"
+      onClick={() => {
+        console.log("Edit", task.id)
+      }}
+    >
+      ✏ Edit
+    </button> */}
+
+    {/* <button
+      className="flex w-full items-center rounded-md px-3 py-2 text-sm hover:bg-accent"
+      onClick={() => {
+        console.log("View", task.id)
+      }}
+    >
+      👁 View Details
+    </button> */}
+
+    <div className="my-1 border-t" />
+
+    <button
+      className="flex w-full items-center rounded-md px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+      onClick={() => {
+        console.log("Delete", task.id)
+      }}
+    >
+      🗑 Delete Task
+    </button>
+  </PopoverContent>
+</Popover>
                       </div>
 
                       <p className="mt-3 text-sm text-muted-foreground">

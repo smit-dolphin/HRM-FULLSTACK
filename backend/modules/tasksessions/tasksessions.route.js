@@ -4,20 +4,17 @@ import {
   pauseTaskSession,
   startTaskSession,
   stopTaskSession,
- 
+  getActiveTaskSession,
+  getActiveSessionsTime
 } from "./tasksessions.controller.js"
+import autherize from "../../middlewares/autherize.middleare.js"
 
 const router = Router()
 
-// router.get("/", authenticatUser, getAllTaskSessions)
-// router.get("/:id", authenticatUser, getTaskSessionById)
-// router.post("/", authenticatUser, createTaskSession)
-// router.patch("/:id", authenticatUser, updateTaskSession)
-// router.patch("/:id/status", authenticatUser, updateTaskSessionStatus)
-// router.delete("/:id", authenticatUser, deleteTaskSession)
-
-router.post('/start/:taskId',authenticatUser,startTaskSession)
-router.patch('/pause/:taskId',authenticatUser,pauseTaskSession)
-router.patch('/complete/:taskId',authenticatUser,stopTaskSession)
+router.get('/active', authenticatUser,autherize('task-session:view'), getActiveTaskSession)
+router.get('/active-sessions-time',authenticatUser,autherize('task-session:time:view'),getActiveSessionsTime)
+router.post('/start/:taskId', authenticatUser,autherize('task-session:status:create'), startTaskSession)
+router.patch('/pause/:taskId', authenticatUser,autherize('task-session:status:pause'), pauseTaskSession)
+router.patch('/complete/:taskId', authenticatUser,autherize('task-session:status:complete'), stopTaskSession)
 
 export const taskSessionsRouter = router

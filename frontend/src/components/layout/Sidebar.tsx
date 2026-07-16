@@ -1,6 +1,6 @@
 import * as React from 'react';
 // import { NavLink } from 'react-router-dom';
-import { Link } from "@tanstack/react-router"
+import { Link, useLocation } from "@tanstack/react-router"
 import {
   LayoutDashboard,
   Users,
@@ -11,12 +11,12 @@ import {
   BriefcaseBusiness,
   Building2,
   CalendarRange,
-  Plus,
   X,
   Moon,
   Sun,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   Presentation,
   KanbanSquareDashed,
   ListTodo,
@@ -27,7 +27,10 @@ import { cn } from '@/utils/cn';
 import { Button } from '@/components/ui/button';
 import { useTaskStore } from '@/store/useTaskStore';
 
-const navItems: { icon: any; label: string; path: string; permission?: string }[] = [
+type NavChild = { label: string; path: string; permission?: string };
+type NavItem = { icon: any; label: string; path?: string; permission?: string; children?: NavChild[] };
+
+const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
   { icon: ListTodo, label: 'Tasks', path: '/task', permission: 'task:list:view' },
   { icon: UserRound, label: 'Users', path: '/users', permission: 'user:view' },
@@ -35,7 +38,15 @@ const navItems: { icon: any; label: string; path: string; permission?: string }[
   { icon: Building2, label: 'Departments', path: '/departments', permission: 'department:view' },
   { icon: CalendarDays, label: 'Leaves', path: '/leaves', permission: 'leave:request:view_own' },
   { icon: CalendarRange, label: 'Holidays', path: '/holidays', permission: 'holiday:view' },
-  { icon: Plus, label: 'projects', path: '/projects', permission: 'project:list:view' },
+  {
+    icon: Presentation,
+    label: 'Projects',
+    permission: 'project:list:view',
+    children: [
+      { label: 'Project Dashboard', path: '/projects/dashboard',permission:'project:dashboard:view' },
+      { label: 'Projects', path: '/projects' },
+    ],
+  },
   { icon: KanbanSquareDashed, label: 'Kanban Board', path: '/kanban', permission: 'task:list:view' },
   { icon: Settings, label: 'Settings', path: '/settings', permission: 'leave:type:manage' },
 ];
@@ -52,10 +63,32 @@ export function Sidebar({ collapsed = false, mobileOpen = false, onToggleCollaps
   const { user, logout, hasPermission } = useAuthStore();
   const { clearTasks } = useTaskStore()
   const { theme, setTheme } = useTheme();
+  const location = useLocation();
   void onCollapse;
 
   const baseWidth = mobileOpen ? 'w-64' : collapsed ? 'w-20' : 'w-64';
   const compact = collapsed && !mobileOpen;
+
+  // Auto-expand a parent item if the current route is one of its children.
+  const [openMenus, setOpenMenus] = React.useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    navItems.forEach((item) => {
+      if (item.children?.some((child) => location.pathname.startsWith(child.path))) {
+        initial[item.label] = true;
+      }
+    });
+    return initial;
+  });
+
+  const toggleMenu = (label: string) => {
+    setOpenMenus((prev) => ({ ...prev, [label]: !prev[label] }));
+  };
+
+  const closeMobileIfNeeded = () => {
+    if (mobileOpen && onCloseMobile) {
+      onCloseMobile();
+    }
+  };
 
   return (
     <>
@@ -104,35 +137,108 @@ export function Sidebar({ collapsed = false, mobileOpen = false, onToggleCollaps
 
         <nav className={cn("flex-1 space-y-1 overflow-y-auto p-3", compact && "px-2")}>
           {navItems
-            .filter(item => !item.permission || hasPermission(item.permission))
-            .map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                title={item.label}
-                className={cn(
-                  "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-                  compact && "justify-center px-0"
-                )}
-                activeProps={{
-                  className: "bg-primary/10 text-primary shadow-sm",
-                }}
-                onClick={() => {
-                  if (mobileOpen && onCloseMobile) {
-                    onCloseMobile();
-                  }
-                }}
-                inactiveProps={{
-                  className:
-                    "text-muted-foreground hover:bg-accent hover:text-foreground",
-                }}
-              >
-                <item.icon className="w-5 h-5" />
-                <span className={cn("truncate", compact && "hidden")}>
-                  {item.label}
-                </span>
-              </Link>
-            ))}
+            .filter((item) => !item.permission || hasPermission(item.permission))
+            .map((item) => {
+              // ---- Parent item with a collapsible sub-menu ----
+              if (item.children) {
+                const visibleChildren = item.children.filter(
+                  (child) => !child.permission || hasPermission(child.permission)
+                );
+                if (visibleChildren.length === 0) return null;
+
+                const isOpen = !compact && (openMenus[item.label] ?? false);
+                const isChildActive = visibleChildren.some((child) =>
+                  location.pathname.startsWith(child.path)
+                );
+
+                return (
+                  <div key={item.label}>
+                    <button
+                      type="button"
+                      title={item.label}
+                      onClick={() => {
+                        if (compact) return;
+                        toggleMenu(item.label);
+                      }}
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                        isChildActive
+                          ? "text-foreground"
+                          : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                        compact && "justify-center px-0"
+                      )}
+                    >
+                      <item.icon className="h-5 w-5 shrink-0" />
+                      {!compact && (
+                        <>
+                          <span className="flex-1 truncate text-left">{item.label}</span>
+                          <ChevronDown
+                            className={cn(
+                              "h-4 w-4 shrink-0 transition-transform duration-200",
+                              isOpen && "rotate-180"
+                            )}
+                          />
+                        </>
+                      )}
+                    </button>
+
+                    {!compact && (
+                      <div
+                        className={cn(
+                          "grid overflow-hidden transition-all duration-200 ease-in-out",
+                          isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                        )}
+                      >
+                        <div className="min-h-0 space-y-1  pl-[1.45rem]">
+                          {visibleChildren.map((child) => (
+                            <Link
+                              key={child.path}
+                              to={child.path}
+                              className="block  border-l-2 mb-0 px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground border-l "
+                              activeOptions={{
+                                exact: true,
+                              }}
+                              activeProps={{
+                                className: "border-primary bg-primary/10 text-primary font-medium",
+                              }}
+                              onClick={closeMobileIfNeeded}
+                            >
+                              <span className="truncate">{child.label}</span>
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              // ---- Plain nav item (no children) ----
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path!}
+                  title={item.label}
+                  className={cn(
+                    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                    compact && "justify-center px-0"
+                  )}
+                  activeProps={{
+                    className: "bg-primary/10 text-primary shadow-sm",
+                  }}
+                  onClick={closeMobileIfNeeded}
+                  inactiveProps={{
+                    className:
+                      "text-muted-foreground hover:bg-accent hover:text-foreground",
+                  }}
+                >
+                  <item.icon className="w-5 h-5" />
+                  <span className={cn("truncate", compact && "hidden")}>
+                    {item.label}
+                  </span>
+                </Link>
+              );
+            })}
         </nav>
 
         <div className={cn("mt-auto p-4", compact && "px-3")}>

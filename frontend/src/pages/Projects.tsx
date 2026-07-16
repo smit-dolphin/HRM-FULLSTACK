@@ -17,6 +17,7 @@ import { DataTable } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/shared'
 import { ActionMenu, type ActionMenuItem } from '@/components/ui/ActionMenu'
 import { useNavigate } from '@tanstack/react-router'
+import { useAuthStore } from '@/store/useAuthStore'
 
 type ProjectWithMembers = Project & {
   members?: Array<{
@@ -58,6 +59,8 @@ export function Projects() {
   const [selectedProject, setSelectedProject] = React.useState<Project | null>(null)
   const [editProjectDialogOpen, setEditProjectDialogOpen] = React.useState(false)
   const [editingProject, setEditingProject] = React.useState<Project | null>(null)
+
+  const { hasPermission } = useAuthStore()
 
 
   const navigate = useNavigate()
@@ -138,138 +141,152 @@ export function Projects() {
   }
 
   const projectRows: ProjectRow[] = projects.map((project) => {
-  const projectTasks = tasks.filter(
-    (task) => task.projectId === project.id
-  )
+    const projectTasks = tasks.filter(
+      (task) => task.projectId === project.id
+    )
 
-  const completedTasks = projectTasks.filter(
-    (task) => task.status === 'completed'
-  ).length
+    const completedTasks = projectTasks.filter(
+      (task) => task.status === 'completed'
+    ).length
 
-  const progress =
-    projectTasks.length === 0
-      ? 0
-      : Math.round(
+    const progress =
+      projectTasks.length === 0
+        ? 0
+        : Math.round(
           (completedTasks / projectTasks.length) * 100
         )
 
-  return {
-    id: project.id,
-    name: project.name,
-    description: project.description ?? '',
-    status: project.status,
-    progress,
-    tasks: projectTasks.length,
-    members: project.members?.length ?? 0,
-    completedTasks,
-    deadline: project.deadline?.split('T')[0] ?? '-',
-  }
-})
+    return {
+      id: project.id,
+      name: project.name,
+      description: project.description ?? '',
+      status: project.status,
+      progress,
+      tasks: projectTasks.length,
+      members: project.members?.length ?? 0,
+      completedTasks,
+      deadline: project.deadline?.split('T')[0] ?? '-',
+    }
+  })
 
-const columnHelper = createColumnHelper<ProjectRow>()
+  const columnHelper = createColumnHelper<ProjectRow>()
 
 
 
-const columns = [
-  columnHelper.accessor('name', {
-    header: 'Project',
-    cell: (info) => (
-      <div>
-        <p className="font-medium">
-          {info.row.original.name}
-        </p>
+  const columns = [
+    columnHelper.accessor('name', {
+      header: 'Project',
+      cell: (info) => (
+        <div>
+          <p className="font-medium">
+            {info.row.original.name}
+          </p>
 
-        <p className="text-xs text-muted-foreground line-clamp-1">
-          {info.row.original.description} 
-        </p>
-      </div>
-    ),
-  }),
+          <p className="text-xs text-muted-foreground line-clamp-1">
+            {info.row.original.description}
+          </p>
+        </div>
+      ),
+    }),
 
-  columnHelper.accessor('status', {
-    header: 'Status',
-    cell: (info) => (
-      <StatusBadge
-        label={info.getValue()}
-        variant={
-          info.getValue() === 'completed'
-            ? 'success'
-            : 'warning'
+    columnHelper.accessor('status', {
+      header: 'Status',
+      cell: (info) => (
+        <StatusBadge
+          label={info.getValue()}
+          variant={
+            info.getValue() === 'completed'
+              ? 'success'
+              : 'warning'
+          }
+        />
+      ),
+    }),
+
+    columnHelper.accessor('progress', {
+      header: 'Progress',
+      cell: (info) => (
+        <div className="w-32">
+          <div className="flex justify-between text-xs mb-1">
+            <span>{info.getValue()}%</span>
+          </div>
+
+          <div className="h-2 bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary"
+              style={{
+                width: `${info.getValue()}%`,
+              }}
+            />
+          </div>
+        </div>
+      ),
+    }),
+
+    columnHelper.accessor('tasks', {
+      header: 'Tasks',
+    }),
+
+    columnHelper.accessor('members', {
+      header: 'Members',
+    }),
+
+    columnHelper.accessor('completedTasks', {
+      header: 'Done',
+    }),
+
+    columnHelper.accessor('deadline', {
+      header: 'Deadline',
+    }),
+
+    columnHelper.display({
+      id: 'actions',
+      header: 'Actions',
+      cell: (info) => {
+        const project = projects.find(
+          (p) => p.id === info.row.original.id
+        )
+
+        if (!project) return null
+
+        const items: ActionMenuItem[] =[]
+
+        if(hasPermission('project:view')){
+          items.push({
+            label: 'View Details',
+            onClick: () =>
+              navigate({ to: '/projects/$id', params: { id: project.id } }),
+          })
         }
-      />
-    ),
-  }),
+        
+         if(hasPermission('project:edit')){
 
-  columnHelper.accessor('progress', {
-    header: 'Progress',
-    cell: (info) => (
-      <div className="w-32">
-        <div className="flex justify-between text-xs mb-1">
-          <span>{info.getValue()}%</span>
-        </div>
+           items.push({
+             label: 'Edit',
+             onClick: () => handleOpenEditProject(project),
+            })
+          }
 
-        <div className="h-2 bg-muted rounded-full overflow-hidden">
-          <div
-            className="h-full bg-primary"
-            style={{
-              width: `${info.getValue()}%`,
-            }}
-          />
-        </div>
-      </div>
-    ),
-  }),
+          if(hasPermission('project:member:create')){
 
-  columnHelper.accessor('tasks', {
-    header: 'Tasks',
-  }),
+            items.push({
+              label: 'Assign Employee',
+              onClick: () => handleOpenMemberDialog(project),
+            })
+          }
 
-  columnHelper.accessor('members', {
-    header: 'Members',
-  }),
+          if(hasPermission('task:create')){
 
-  columnHelper.accessor('completedTasks', {
-    header: 'Done',
-  }),
+            items.push({
+              label: 'Create Task',
+              onClick: () => handleOpenTaskDialog(project),
+            })
+          }
 
-  columnHelper.accessor('deadline', {
-    header: 'Deadline',
-  }),
-
-  columnHelper.display({
-    id: 'actions',
-    header: 'Actions',
-    cell: (info) => {
-      const project = projects.find(
-        (p) => p.id === info.row.original.id
-      )
-
-      if (!project) return null
-
-      const items: ActionMenuItem[] = [
-        {
-        label: 'View Details',
-        onClick: () =>
-          navigate({ to: '/projects/$id', params: { id: project.id } }),
+        return <ActionMenu items={items} />
       },
-        {
-          label: 'Edit',
-          onClick: () => handleOpenEditProject(project),
-        },
-        {
-          label: 'Assign Employee',
-          onClick: () => handleOpenMemberDialog(project),
-        },
-        {
-          label: 'Create Task',
-          onClick: () => handleOpenTaskDialog(project),
-        },
-      ]
-
-      return <ActionMenu items={items} />
-    },
-  }),
-]
+    }),
+  ]
   return (
     <div className="space-y-6">
 
@@ -309,175 +326,13 @@ const columns = [
       </div>
 
       <DataTable
-  data={projectRows}
-  columns={columns}
-  loading={projectsQuery.isPending}
-  searchable={false}
-  emptyMessage="No projects found."
-/>
+        data={projectRows}
+        columns={columns}
+        loading={projectsQuery.isPending}
+        searchable={false}
+        emptyMessage="No projects found."
+      />
 
-      {/* <div className="space-y-4">
-        {projects.length === 0 ? (
-          <div className="rounded-2xl border border-dashed bg-card p-8 text-center text-muted-foreground">
-            No projects yet. Create the first one to get started.
-          </div>
-        ) : (
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {projects.map((project) => {
-              const projectTasks = tasks.filter(
-                (task) => task.projectId === project.id
-              )
-
-              const members = project.members ?? []
-
-              const completedTasks = projectTasks.filter(
-                (task) => task.status === 'completed'
-              ).length
-
-              const progress =
-                projectTasks.length === 0
-                  ? 0
-                  : Math.round(
-                    (completedTasks / projectTasks.length) * 100
-                  )
-
-              return (
-                <div
-                  key={project.id}
-                  className="rounded-2xl border bg-card p-5 shadow-sm transition-all hover:shadow-lg"
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold">
-                        {project.name}
-                      </h3>
-
-                      <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
-                        {project.description ||
-                          'No description available'}
-                      </p>
-                    </div>
-
-                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                      {project.status}
-                    </span>
-                  </div>
-
-                  <div className="mt-5">
-                    <div className="mb-2 flex justify-between text-xs">
-                      <span>Progress</span>
-                      <span>{progress}%</span>
-                    </div>
-
-                    <div className="h-2 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full bg-primary transition-all"
-                        style={{
-                          width: `${progress}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-5 grid grid-cols-3 gap-3">
-                    <div className="rounded-xl bg-muted/50 p-3">
-                      <p className="text-xs text-muted-foreground">
-                        Tasks
-                      </p>
-                      <p className="text-lg font-semibold">
-                        {projectTasks?.length}
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl bg-muted/50 p-3">
-                      <p className="text-xs text-muted-foreground">
-                        Members
-                      </p>
-                      <p className="text-lg font-semibold">
-                        {members.length}
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl bg-muted/50 p-3">
-                      <p className="text-xs text-muted-foreground">
-                        Done
-                      </p>
-                      <p className="text-lg font-semibold">
-                        {completedTasks}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 flex items-center justify-between rounded-xl border p-3">
-                    <div>
-                      <p className="text-xs text-muted-foreground">
-                        Deadline
-                      </p>
-
-                      <p className="font-medium">
-                        {project?.deadline?.split('T')[0]}
-                      </p>
-                    </div>
-
-                    <div className="flex -space-x-2">
-                      {members.slice(0, 4).map((member) => (
-                        <div
-                          key={member.employeeId}
-                          className="flex h-8 w-8 items-center justify-center rounded-full border bg-primary/10 text-xs font-semibold"
-                          title={member.employee?.user?.email}
-                        >
-                          {(
-                            member.employee?.user?.email[0] ??
-                            'U'
-                          ).toUpperCase()}
-                        </div>
-                      ))}
-
-                      {members.length > 4 && (
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full border bg-muted text-xs">
-                          +{members.length - 4}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        handleOpenEditProject(project)
-                      }
-                    >
-                      Edit
-                    </Button>
-
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        handleOpenMemberDialog(project)
-                      }
-                    >
-                      <UserPlus className="mr-2 h-4 w-4" />
-                      Assign
-                    </Button>
-
-                    <Button
-                      size="sm"
-                      onClick={() =>
-                        handleOpenTaskDialog(project)
-                      }
-                    >
-                      Create Task
-                    </Button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div> */}
 
 
       <CreateProjectForm

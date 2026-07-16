@@ -2,6 +2,7 @@ import errorResponse from "../../helper/errorResponse.js"
 import successResponse from "../../helper/successResponse.js"
 import prisma from "../../config/prisma.config.js"
 import { createProjectSchema, updateProjectStatusSchema, addProjectMemberSchema, updateProjectSchema } from "./projectsValidation.schema.js"
+import checkPermission from "../../helper/checkPermission.js"
 
 
 
@@ -18,9 +19,19 @@ export const createProject = async (req, res) => {
         //can create tasks , assign them also
         //tl:- can assign task to employees and see task audit report ?i think he can see
 
-        const role = req.user.role
-        if (role !== "admin") {
-            return errorResponse(res, 403, "Access denied", "Only admins can create projects.")
+        //i can add check for permission based  so i can make it scallable
+
+        //here i will create a helper which chek for specific role
+
+        // const role = req.user.role
+        // if (role !== "admin") {
+        //     return errorResponse(res, 403, "Access denied", "Only admins can create projects.")
+        // }
+
+        const userId=req.user.id
+        if(!checkPermission(userId,"project:create")){
+            return errorResponse(res, 403, "Access denied", "not have permission to create project.")
+
         }
 
         const validation = createProjectSchema.safeParse(req.body);

@@ -9,6 +9,9 @@ router.get('/',authenticatUser,autherize('project:list:view'), getAllProjects)
 router.get('/:id', authenticatUser,autherize('project:view'), getProjectById)
 router.get('/:id/members', authenticatUser,autherize('project:members:view'), getAllMembers)
 
+//for super admin 
+//dashboard
+
 router.post('/',authenticatUser,autherize('project:create'),createProject)
 router.post('/:id/members', authenticatUser,autherize('project:member:create'), addProjectMember)
 

@@ -39,6 +39,7 @@ const Holidays = lazy(() => import('@/pages/Holidays').then(m => ({ default: m.H
 const KanbanBoard = lazy(() => import('@/pages/KanbanBoard').then(m => ({ default: m.KanbanBoard })))
 const Projects = lazy(() => import('@/pages/Projects').then(m => ({ default: m.Projects })))
 const ProjectDetailedPage = lazy(() => import('@/pages/ProjectDetailedPage').then(m => ({ default: m.ProjectDetailedPage })))
+const ProjectDashboard=lazy(() => import('@/pages/projects/ProjectDashboard').then(m => ({ default: m.ProjectDashboard })))
 
 export interface applayoutprop {
   children: ReactNode
@@ -165,6 +166,12 @@ const projectDetailRoute = createRoute({
   path: 'projects/$id',
   component: ProjectDetailedPage,
 })
+
+const peojectDashboardRoute=createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: 'projects/dashboard',
+  component: ProjectDashboard,
+})
 // ---------------- Settings ----------------
 
 const settingsRoute = createRoute({
@@ -199,6 +206,8 @@ const routeTree = rootRoute.addChildren([
       projectDetailRoute,
       settingsRoute,
       taskRoute,
+      peojectDashboardRoute 
+
     ]),
   ]),
 ])

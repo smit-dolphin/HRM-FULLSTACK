@@ -1,7 +1,7 @@
 import errorResponse from "../../helper/errorResponse.js"
 import successResponse from "../../helper/successResponse.js"
 import prisma from "../../config/prisma.config.js"
-import { createProjectSchema, updateProjectStatusSchema, addProjectMemberSchema } from "./projectsValidation.schema.js"
+import { createProjectSchema, updateProjectStatusSchema, addProjectMemberSchema, updateProjectSchema } from "./projectsValidation.schema.js"
 
 
 
@@ -34,7 +34,7 @@ export const createProject = async (req, res) => {
             );
         }
 
-        const { name, description, deadline } = validation.data;
+        const { name, description, deadline ,managerId} = validation.data;
         //todo :- validate req.body in future
 
         const existingProject = await prisma.project.findFirst({
@@ -61,7 +61,9 @@ export const createProject = async (req, res) => {
                 name: name,
                 description: description,
                 deadline: deadline,
-                ownerUserId: req.user.id
+                ownerUserId: req.user.id,
+                managerId:managerId??null
+
             }
         })
 
@@ -170,6 +172,8 @@ export const updateProject = async (req, res) => {
         }
 
         const { name, description, deadline, managerId } = validation.data;
+
+        
 
         const project = await prisma.project.findUnique({
             where: { id },

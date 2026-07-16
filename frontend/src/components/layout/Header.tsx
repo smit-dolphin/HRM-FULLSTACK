@@ -16,91 +16,106 @@ import { useAuthStore } from '@/store/useAuthStore'
 import { cn } from '@/utils/cn'
 import { useQuery } from '@tanstack/react-query'
 import { activeTaskSessionQueryOptions, useCurrentElepsedTimeTaskSession, useStartTaskSession, usePauseTaskSession, useCompleteTaskSession } from '@/querryOptions/taskSessionOptions'
-import { fetchMyTasksService } from '@/services/taskService/taskService'
+import { fetchMyTasksService, type Task } from '@/services/taskService/taskService'
 import { useTaskStore } from '@/store/useTaskStore'
+import { useShallow } from 'zustand/react/shallow'
+import useTaskTimer from '@/hooks/useTaskTimer'
+
+
+
 type HeaderProps = {
   collapsed?: boolean
   onToggleCollapse?: () => void
   onOpenMobile?: () => void
 }
 
-type TaskStatus = 'running' | 'paused'
+// type TaskStatus = 'running' | 'paused'
 
-interface TimerTask {
-  id: string
-  name: string
-  project: string
-  status: TaskStatus
-}
-
-// Dummy tasks for UI - will be replaced with real data later
-// const initialTasks: TimerTask[] = [
-//   { id: '1', name: 'Design landing page', project: 'Website Redesign', status: 'paused' },
-//   { id: '2', name: 'Fix login bug', project: 'HRM App', status: 'paused' },
-//   { id: '3', name: 'Write API docs', project: 'Backend Services', status: 'paused' },
-//   { id: '4', name: 'Setup CI/CD pipeline', project: 'DevOps', status: 'paused' },
-// ]
-// Removed dummy tasks state
+// interface TimerTask {
+//   id: string
+//   name: string
+//   project: string
+//   status: TaskStatus
+// }
 
 
-const TimerFormateHourMinutSecondHelper = (sec: number) => {
 
-  const hours = Math.floor(sec / 3600)
-  const minutes = Math.floor((sec % 3600) / 60)
-  const seconds = sec % 60
-
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-}
 
 export function Header({
   collapsed = false,
   onOpenMobile,
 }: HeaderProps) {
-  const { user } = useAuthStore()
-  const myTasksQuery = useQuery({
-    queryKey: ['myTasks'],
-    queryFn: () => fetchMyTasksService(),
-  })
-  
-  const { tasks:activeTasks,currentTask,addTask, setCurrentTask, clearCurrentTask } = useTaskStore()
-  // const tasks = myTasksQuery.data?.data || []
-  const tasks = activeTasks || []
 
-  const activeSessionQuery = useQuery(activeTaskSessionQueryOptions)
-  const activeSession = activeSessionQuery.data
+
+
+  const { user } = useAuthStore()
+
+
+  const {
+    tasks,
+    currentTask,
+    addTask,
+    setCurrentTask,
+    clearCurrentTask,
+    currentStatus,
+    changeStatus
+  } = useTaskStore(
+    useShallow((state) => ({
+      tasks: state.tasks,
+      currentTask: state.currentTask,
+      addTask: state.addTask,
+      setCurrentTask: state.setCurrentTask,
+      clearCurrentTask: state.clearCurrentTask,
+      currentStatus: state.currentStatus,
+      changeStatus: state.changeStatus
+    }))
+  )
+
+  const { currentrCalculatedTimer } = useTaskTimer()
+
+
+  // const activeSessionQuery = useQuery(activeTaskSessionQueryOptions)
+  // const activeSession = activeSessionQuery.data
 
   const startTask = useStartTaskSession()
   const pauseTask = usePauseTaskSession()
   const completeTask = useCompleteTaskSession()
 
-  // Sync active backend session with local store
-  React.useEffect(() => {
-    if (activeSession && activeSession.taskSessionStatus === 'running') {
-      const t = tasks.find(t => t.id === activeSession.taskId)
-      if (t) addTask(t)
-        // setCurrentTask(t)
-    } else if (activeSession && activeSession.taskSessionStatus === 'completed') {
-      clearCurrentTask()
-    }
-  }, [activeSession,addTask, tasks, setCurrentTask, clearCurrentTask])
 
-  // this part store current task
-  const runningTask = activeSession && activeSession.taskSessionStatus === 'running'
-    ? activeSession.task
-    : undefined
+  // const runningTask = activeSession && activeSession.taskSessionStatus === 'running'
+  //   ? activeSession.task
+  //   : undefined
+
+   const activeSession = useQuery(activeTaskSessionQueryOptions)
+  const activetask = React.useMemo(()=>{ return activeSession.data?.task},[activeSession])
+  // console.log(activetask)
+  React.useEffect(() => {
+  if (
+  activeSession.data?.taskSessionStatus === "running" &&
+  activetask &&
+  currentTask === null
+) {
+  addTask(activetask as Task)
+  changeStatus("play")
+}
+}, [activetask, currentStatus, currentTask])
 
   const handlePlay = (taskToPlay: any) => {
     setCurrentTask(taskToPlay)
     startTask.mutate(taskToPlay.id || taskToPlay.taskId)
+    changeStatus("play")
   }
 
   const handlePause = (taskId: string) => {
     pauseTask.mutate(taskId)
+    console.log("pausing task with id:", taskId)
+    changeStatus("pause")
   }
 
   const handleStop = () => {
-    if (activeSession?.taskId) {
-      completeTask.mutate(activeSession.taskId)
+    if (currentTask?.id) {
+      completeTask.mutate(currentTask.id)
+      changeStatus("stop")
       clearCurrentTask()
     }
   }
@@ -109,65 +124,22 @@ export function Header({
 
 
   const handleHeaderToggle = () => {
-    if (runningTask) {
-      handlePause(runningTask.id || activeSession.taskId)
-    } else if (currentTask) {
+    // if (runningTask) {
+    //   handlePause(runningTask.id || activeSession.taskId)
+    // } else
+    if (currentTask && currentStatus === "pause") {
       handlePlay(currentTask)
-    } else if (activeSession?.taskId) {
-      handlePlay({ id: activeSession.taskId })
-    } else if (tasks.length > 0) {
-      handlePlay(tasks[0])
+    } else if(currentTask && currentStatus === "play"){
+      handlePause(currentTask.id)
     }
   }
 
-  const currenttimeres = useQuery(useCurrentElepsedTimeTaskSession)
 
-  const serverElapsedSeconds =
-    currenttimeres.data?.data.totalElepsedTimeSeconds ?? 0
 
-  // Local timer state
-  const [elapsedSeconds, setElapsedSeconds] = React.useState(serverElapsedSeconds)
 
-  // Whenever backend data changes (initial load/refetch),
-  // sync the local timer.
-  React.useEffect(() => {
-    setElapsedSeconds(serverElapsedSeconds)
-  }, [serverElapsedSeconds])
 
-  const currentTaskStatus =
-    currenttimeres.data?.data.currentTaskStatus as
-    | 'running'
-    | 'paused'
-    | 'completed'
-    | undefined
 
-  React.useEffect(() => {
-    if (currentTaskStatus !== 'running') {
-      setElapsedSeconds(serverElapsedSeconds)
-      return
-    }
 
-    setElapsedSeconds(prev =>
-      serverElapsedSeconds > prev ? serverElapsedSeconds : prev
-    )
-  }, [serverElapsedSeconds, currentTaskStatus,addTask])
-
-  // Increment only while running.
-  React.useEffect(() => {
-    if (!activeSession) return
-    if (currentTaskStatus !== 'running') return
-
-    const interval = setInterval(() => {
-      setElapsedSeconds(prev => prev + 1)
-    }, 1000)
-
-    return () => clearInterval(interval)
-  }, [currentTaskStatus])
-
-  // Format only when displaying.
-  const currentTime = React.useMemo(() => {
-    return TimerFormateHourMinutSecondHelper(elapsedSeconds)
-  }, [elapsedSeconds])
 
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-card/85 px-4 py-1 backdrop-blur-xl md:px-6">
@@ -204,7 +176,7 @@ export function Header({
                   <div
                     className={cn(
                       "flex h-7 w-7 items-center justify-center rounded-full",
-                      !runningTask
+                      !currentTask
                         ? "bg-red-100 text-red-600"
                         : "bg-primary/10 text-primary"
                     )}
@@ -215,10 +187,10 @@ export function Header({
                   <span
                     className={cn(
                       "font-mono text-base font-semibold tracking-wider",
-                      !runningTask && "text-red-600"
+                      currentStatus!=="play" && "text-red-600"
                     )}
                   >
-                    {currentTime}
+                    {currentrCalculatedTimer}
                   </span>
                   <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>
@@ -229,7 +201,7 @@ export function Header({
                 className="h-10 rounded-none border-l px-3"
                 onClick={handleHeaderToggle}
               >
-                {!runningTask ? (
+                {  currentStatus!=="play" ? (
                   <Play className="h-4 w-4 fill-current text-green-600" />
                 ) : (
                   <Pause className="h-4 w-4 fill-current text-amber-600" />
@@ -254,7 +226,7 @@ export function Header({
               {/* Task List */}
               <div className="max-h-64 overflow-y-auto py-1">
                 {tasks.map((task: any) => {
-                  const isTaskRunning = activeSession?.taskId === task.id && activeSession?.taskSessionStatus === 'running'
+                  const isTaskRunning = currentTask?.id === task.id && currentStatus === 'play'
 
                   return (
                     <div

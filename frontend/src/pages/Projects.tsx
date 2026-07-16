@@ -1,50 +1,66 @@
 import React from 'react'
-import { useForm } from 'react-hook-form'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { BriefcaseBusiness, ClipboardList, Plus, Trash2, UserPlus, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { DialogForm, FormActions, FormField, FormInput, FormSelect, FormTextarea } from '@/components/forms/DialogForm'
 import { querryClient } from '@/querryOptions/querryClinets'
 import { fetchEmployeesService, type Employee } from '@/services/employeeService/employeeService'
-import { addProjectMemberService, createProjectService, fetchProjectMembersService, fetchProjectsService, removeProjectMemberService, type Project, type ProjectMember } from '@/services/projectService/projectService'
-import { createTaskService, fetchTasksService, type Task } from '@/services/taskService/taskService'
+import { fetchProjectsService, removeProjectMemberService, updateProjectStatusService, type Project } from '@/services/projectService/projectService'
+import { fetchTasksService, type Task } from '@/services/taskService/taskService'
+import CreateProjectForm from '@/components/forms/projectForms/CreateProjectForm'
+import AssignEmployeeForm from '@/components/forms/projectForms/AssignEmployeeForm'
+import CreateTaskForm from '@/components/forms/projectForms/CreateTaskForm'
+import EditProjectForm from '@/components/forms/projectForms/EditProjectForm'
+import { createColumnHelper } from '@tanstack/react-table'
+import { DataTable } from '@/components/ui/DataTable'
+import { StatusBadge } from '@/components/ui/shared'
+import { ActionMenu, type ActionMenuItem } from '@/components/ui/ActionMenu'
+import { useNavigate } from '@tanstack/react-router'
 
-type ProjectFormValues = {
+type ProjectWithMembers = Project & {
+  members?: Array<{
+    projectId: string
+    employeeId: string
+    employee?: {
+      id: string
+      departmentId: string
+      designationId: string
+      user?: {
+        id: string
+        firstName: string
+        lastName: string
+        email: string
+        profileImage?: string
+      }
+    }
+  }>
+}
+
+
+type ProjectRow = {
+  id: string
   name: string
   description: string
+  status: string
+  progress: number
+  tasks: number
+  members: number
+  completedTasks: number
+  deadline: string
 }
 
-type TaskFormValues = {
-  name: string
-  description: string
-  projectId: string
-  ownerId: string
-}
-
-type MemberFormValues = {
-  employeeId: string
-}
 
 export function Projects() {
   const [projectDialogOpen, setProjectDialogOpen] = React.useState(false)
   const [taskDialogOpen, setTaskDialogOpen] = React.useState(false)
   const [memberDialogOpen, setMemberDialogOpen] = React.useState(false)
   const [selectedProject, setSelectedProject] = React.useState<Project | null>(null)
+  const [editProjectDialogOpen, setEditProjectDialogOpen] = React.useState(false)
+  const [editingProject, setEditingProject] = React.useState<Project | null>(null)
 
-  const projectForm = useForm<ProjectFormValues>({
-    defaultValues: { name: '', description: '' },
-  })
 
-  const taskForm = useForm<TaskFormValues>({
-    defaultValues: { name: '', description: '', projectId: '', ownerId: '' },
-  })
-
-  const memberForm = useForm<MemberFormValues>({
-    defaultValues: { employeeId: '' },
-  })
-
+  const navigate = useNavigate()
   const projectsQuery = useQuery({
     queryKey: ['projects'],
     queryFn: () => fetchProjectsService({ limit: 100 }),
@@ -55,73 +71,29 @@ export function Projects() {
     queryFn: () => fetchTasksService({ limit: 200 }),
   })
 
-  const employeesQuery = useQuery({
-    queryKey: ['employee-options'],
-    queryFn: () => fetchEmployeesService({ page: 1, limit: 200 }),
-  })
 
-  const projects = projectsQuery.data?.data ?? []
+  const projects = (projectsQuery.data?.data ?? []) as ProjectWithMembers[]
   const tasks = tasksQuery.data?.data ?? []
-  const employees = employeesQuery.data?.data ?? []
 
-  const projectOptions = projects.map((project) => ({ value: project.id, label: project.name }))
-  const employeeOptions = employees.map((employee) => ({
-    value: employee.id,
-    label: `${employee.user?.firstName ?? ''} ${employee.user?.lastName ?? ''} (${employee.user?.email ?? ''})`,
-  }))
 
-  // Dynamically filter employees to assign to task based on project membership
-  const watchedProjectId = taskForm.watch('projectId')
-  const taskProjectMembersOptions = React.useMemo(() => {
-    if (!watchedProjectId) return []
-    const project = projects.find(p => p.id === watchedProjectId)
-    if (!project || !project.members) return []
-    return project.members.map((m: any) => ({
-      value: m.employee.id,
-      label: `${m.employee.user?.firstName ?? ''} ${m.employee.user?.lastName ?? ''} (${m.employee.user?.email ?? ''})`,
-    }))
-  }, [watchedProjectId, projects])
 
-  const createProjectMutation = useMutation({
-    queryKey: ['create-project'],
-    mutationFn: createProjectService,
+  const updateProjectStatusMutation = useMutation({
+    mutationFn: ({
+      projectId,
+      status,
+    }: {
+      projectId: string
+      status: string
+    }) => updateProjectStatusService(projectId, { status }),
     onSuccess: () => {
-      toast.success('Project created successfully')
-      setProjectDialogOpen(false)
-      projectForm.reset()
+      toast.success('Project status updated')
       querryClient.invalidateQueries({ queryKey: ['projects'] })
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to create project')
+      toast.error(error.message || 'Failed to update project status')
     },
   })
 
-  const createTaskMutation = useMutation({
-    mutationFn: createTaskService,
-    onSuccess: () => {
-      toast.success('Task created successfully')
-      setTaskDialogOpen(false)
-      taskForm.reset()
-      querryClient.invalidateQueries({ queryKey: ['tasks'] })
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to create task')
-    },
-  })
-
-  const assignMemberMutation = useMutation({
-    mutationFn: ({ projectId, employeeId }: { projectId: string; employeeId: string }) =>
-      addProjectMemberService(projectId, { employeeId }),
-    onSuccess: () => {
-      toast.success('Employee assigned to project')
-      setMemberDialogOpen(false)
-      memberForm.reset()
-      querryClient.invalidateQueries({ queryKey: ['projects'] })
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to assign employee')
-    },
-  })
 
   const removeMemberMutation = useMutation({
     mutationFn: ({ projectId, employeeId }: { projectId: string; employeeId: string }) =>
@@ -135,29 +107,16 @@ export function Projects() {
     },
   })
 
-  const handleCreateProject = (values: ProjectFormValues) => {
-    createProjectMutation.mutate({ name: values.name, description: values.description })
-  }
 
-  const handleCreateTask = (values: TaskFormValues) => {
-    createTaskMutation.mutate({
-      name: values.name,
-      description: values.description,
-      projectId: values.projectId,
-      ownerId: values.ownerId,
-    })
-  }
 
   const handleOpenTaskDialog = (project: Project) => {
     setSelectedProject(project)
-    taskForm.setValue('projectId', project.id)
-    taskForm.setValue('ownerId', '')
     setTaskDialogOpen(true)
   }
 
   const handleOpenMemberDialog = (project: Project) => {
     setSelectedProject(project)
-    memberForm.setValue('employeeId', '')
+
     setMemberDialogOpen(true)
   }
 
@@ -165,20 +124,156 @@ export function Projects() {
     removeMemberMutation.mutate({ projectId, employeeId })
   }
 
-  const handleAssignMember = (values: MemberFormValues) => {
-    if (!selectedProject) return
-    assignMemberMutation.mutate({ projectId: selectedProject.id, employeeId: values.employeeId })
+
+  const employeesQuery = useQuery({
+    queryKey: ['employee-options'],
+    queryFn: () => fetchEmployeesService({ page: 1, limit: 200 }),
+  })
+  const employees = employeesQuery.data?.data ?? []
+
+
+  const handleOpenEditProject = (project: Project) => {
+    setEditingProject(project)
+    setEditProjectDialogOpen(true)
   }
 
-  // Filter employees who are not already project members for the Assign Member form
-  const assignMemberOptions = React.useMemo(() => {
-    if (!selectedProject || !selectedProject.members) return employeeOptions
-    const assignedIds = new Set(selectedProject.members.map((m: any) => m.employeeId))
-    return employeeOptions.filter(opt => !assignedIds.has(opt.value))
-  }, [selectedProject, employeeOptions])
+  const projectRows: ProjectRow[] = projects.map((project) => {
+  const projectTasks = tasks.filter(
+    (task) => task.projectId === project.id
+  )
 
+  const completedTasks = projectTasks.filter(
+    (task) => task.status === 'completed'
+  ).length
+
+  const progress =
+    projectTasks.length === 0
+      ? 0
+      : Math.round(
+          (completedTasks / projectTasks.length) * 100
+        )
+
+  return {
+    id: project.id,
+    name: project.name,
+    description: project.description ?? '',
+    status: project.status,
+    progress,
+    tasks: projectTasks.length,
+    members: project.members?.length ?? 0,
+    completedTasks,
+    deadline: project.deadline?.split('T')[0] ?? '-',
+  }
+})
+
+const columnHelper = createColumnHelper<ProjectRow>()
+
+
+
+const columns = [
+  columnHelper.accessor('name', {
+    header: 'Project',
+    cell: (info) => (
+      <div>
+        <p className="font-medium">
+          {info.row.original.name}
+        </p>
+
+        <p className="text-xs text-muted-foreground line-clamp-1">
+          {info.row.original.description} 
+        </p>
+      </div>
+    ),
+  }),
+
+  columnHelper.accessor('status', {
+    header: 'Status',
+    cell: (info) => (
+      <StatusBadge
+        label={info.getValue()}
+        variant={
+          info.getValue() === 'completed'
+            ? 'success'
+            : 'warning'
+        }
+      />
+    ),
+  }),
+
+  columnHelper.accessor('progress', {
+    header: 'Progress',
+    cell: (info) => (
+      <div className="w-32">
+        <div className="flex justify-between text-xs mb-1">
+          <span>{info.getValue()}%</span>
+        </div>
+
+        <div className="h-2 bg-muted rounded-full overflow-hidden">
+          <div
+            className="h-full bg-primary"
+            style={{
+              width: `${info.getValue()}%`,
+            }}
+          />
+        </div>
+      </div>
+    ),
+  }),
+
+  columnHelper.accessor('tasks', {
+    header: 'Tasks',
+  }),
+
+  columnHelper.accessor('members', {
+    header: 'Members',
+  }),
+
+  columnHelper.accessor('completedTasks', {
+    header: 'Done',
+  }),
+
+  columnHelper.accessor('deadline', {
+    header: 'Deadline',
+  }),
+
+  columnHelper.display({
+    id: 'actions',
+    header: 'Actions',
+    cell: (info) => {
+      const project = projects.find(
+        (p) => p.id === info.row.original.id
+      )
+
+      if (!project) return null
+
+      const items: ActionMenuItem[] = [
+        {
+        label: 'View Details',
+        onClick: () =>
+          navigate({ to: '/projects/$id', params: { id: project.id } }),
+      },
+        {
+          label: 'Edit',
+          onClick: () => handleOpenEditProject(project),
+        },
+        {
+          label: 'Assign Employee',
+          onClick: () => handleOpenMemberDialog(project),
+        },
+        {
+          label: 'Create Task',
+          onClick: () => handleOpenTaskDialog(project),
+        },
+      ]
+
+      return <ActionMenu items={items} />
+    },
+  }),
+]
   return (
     <div className="space-y-6">
+
+
       <PageHeader
         title="Projects"
         subtitle="Create projects, assign employees, and manage work items from one place."
@@ -213,242 +308,201 @@ export function Projects() {
         </div>
       </div>
 
-      <div className="space-y-4">
+      <DataTable
+  data={projectRows}
+  columns={columns}
+  loading={projectsQuery.isPending}
+  searchable={false}
+  emptyMessage="No projects found."
+/>
+
+      {/* <div className="space-y-4">
         {projects.length === 0 ? (
           <div className="rounded-2xl border border-dashed bg-card p-8 text-center text-muted-foreground">
             No projects yet. Create the first one to get started.
           </div>
         ) : (
-          projects.map((project) => {
-            const projectTasks = tasks.filter((task) => task.projectId === project.id)
-            const members = project.members ?? []
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+            {projects.map((project) => {
+              const projectTasks = tasks.filter(
+                (task) => task.projectId === project.id
+              )
 
-            return (
-              <div key={project.id} className="rounded-2xl border bg-card p-5 shadow-sm">
-                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                        <BriefcaseBusiness className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold">{project.name}</h3>
-                        <p className="text-sm text-muted-foreground">{project.description || 'No description provided yet.'}</p>
-                      </div>
+              const members = project.members ?? []
+
+              const completedTasks = projectTasks.filter(
+                (task) => task.status === 'completed'
+              ).length
+
+              const progress =
+                projectTasks.length === 0
+                  ? 0
+                  : Math.round(
+                    (completedTasks / projectTasks.length) * 100
+                  )
+
+              return (
+                <div
+                  key={project.id}
+                  className="rounded-2xl border bg-card p-5 shadow-sm transition-all hover:shadow-lg"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold">
+                        {project.name}
+                      </h3>
+
+                      <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
+                        {project.description ||
+                          'No description available'}
+                      </p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
-                        {project.status || 'In Progress'}
-                      </span>
-                      <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
-                        {projectTasks.length} task{projectTasks.length === 1 ? '' : 's'}
-                      </span>
-                      <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-                        {members.length} member{members.length === 1 ? '' : 's'}
-                      </span>
+
+                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                      {project.status}
+                    </span>
+                  </div>
+
+                  <div className="mt-5">
+                    <div className="mb-2 flex justify-between text-xs">
+                      <span>Progress</span>
+                      <span>{progress}%</span>
+                    </div>
+
+                    <div className="h-2 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full bg-primary transition-all"
+                        style={{
+                          width: `${progress}%`,
+                        }}
+                      />
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" onClick={() => handleOpenMemberDialog(project)}>
-                      <UserPlus className="mr-2 h-4 w-4" />
-                      Assign Employee
+                  <div className="mt-5 grid grid-cols-3 gap-3">
+                    <div className="rounded-xl bg-muted/50 p-3">
+                      <p className="text-xs text-muted-foreground">
+                        Tasks
+                      </p>
+                      <p className="text-lg font-semibold">
+                        {projectTasks?.length}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-muted/50 p-3">
+                      <p className="text-xs text-muted-foreground">
+                        Members
+                      </p>
+                      <p className="text-lg font-semibold">
+                        {members.length}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-muted/50 p-3">
+                      <p className="text-xs text-muted-foreground">
+                        Done
+                      </p>
+                      <p className="text-lg font-semibold">
+                        {completedTasks}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 flex items-center justify-between rounded-xl border p-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        Deadline
+                      </p>
+
+                      <p className="font-medium">
+                        {project?.deadline?.split('T')[0]}
+                      </p>
+                    </div>
+
+                    <div className="flex -space-x-2">
+                      {members.slice(0, 4).map((member) => (
+                        <div
+                          key={member.employeeId}
+                          className="flex h-8 w-8 items-center justify-center rounded-full border bg-primary/10 text-xs font-semibold"
+                          title={member.employee?.user?.email}
+                        >
+                          {(
+                            member.employee?.user?.email[0] ??
+                            'U'
+                          ).toUpperCase()}
+                        </div>
+                      ))}
+
+                      {members.length > 4 && (
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full border bg-muted text-xs">
+                          +{members.length - 4}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        handleOpenEditProject(project)
+                      }
+                    >
+                      Edit
                     </Button>
-                    <Button size="sm" onClick={() => handleOpenTaskDialog(project)}>
-                      <ClipboardList className="mr-2 h-4 w-4" />
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        handleOpenMemberDialog(project)
+                      }
+                    >
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Assign
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        handleOpenTaskDialog(project)
+                      }
+                    >
                       Create Task
                     </Button>
                   </div>
                 </div>
-
-                <div className="mt-5 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-                  <div className="rounded-xl border bg-background/70 p-4">
-                    <div className="mb-3 flex items-center justify-between">
-                      <h4 className="text-sm font-semibold">Members</h4>
-                      <span className="text-xs text-muted-foreground">Assigned people</span>
-                    </div>
-
-                    {members.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No members assigned yet.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {members.map((member) => (
-                          <div key={member.employeeId} className="flex items-center justify-between rounded-lg border bg-card px-3 py-2">
-                            <div>
-                              <p className="text-sm font-medium">
-                                {member.employee?.user?.firstName || member.employee?.user?.email || 'Employee'}
-                                {member.employee?.user?.lastName ? ` ${member.employee.user.lastName}` : ''}
-                              </p>
-                              <p className="text-xs text-muted-foreground">{member.employee?.user?.email || 'No email'}</p>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleRemoveMember(project.id, member.employeeId)}
-                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="rounded-xl border bg-background/70 p-4">
-                    <div className="mb-3 flex items-center justify-between">
-                      <h4 className="text-sm font-semibold">Tasks</h4>
-                      <span className="text-xs text-muted-foreground">Keep delivery moving</span>
-                    </div>
-
-                    {projectTasks.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No tasks for this project yet.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {projectTasks.map((task) => (
-                          <div key={task.id} className="flex items-center justify-between rounded-lg border bg-card px-3 py-2">
-                            <div>
-                              <p className="text-sm font-medium">{task.name}</p>
-                              <p className="text-xs text-muted-foreground">{task.description || 'No description'}</p>
-                            </div>
-                            <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
-                              {task.status || 'Pending'}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )
-          })
+              )
+            })}
+          </div>
         )}
-      </div>
+      </div> */}
 
-      <DialogForm
+
+      <CreateProjectForm
         open={projectDialogOpen}
-        onClose={() => {
-          setProjectDialogOpen(false)
-          projectForm.reset()
-        }}
-        title="Create Project"
-        subtitle="Start a new delivery track and assign work later."
-        maxWidth="md"
-      >
-        <form onSubmit={projectForm.handleSubmit(handleCreateProject)} className="space-y-4">
-          <FormField label="Project name" required error={projectForm.formState.errors.name?.message}>
-            <FormInput
-              {...projectForm.register('name', { required: 'Project name is required' })}
-              placeholder="e.g. AI Learning Platform"
-            />
-          </FormField>
+        setOpen={setProjectDialogOpen} />
 
-          <FormField label="Description">
-            <FormTextarea
-              {...projectForm.register('description')}
-              placeholder="Describe the goal of this project"
-            />
-          </FormField>
-
-          <FormActions
-            onCancel={() => {
-              setProjectDialogOpen(false)
-              projectForm.reset()
-            }}
-            submitLabel="Create Project"
-            isSubmitting={createProjectMutation.isPending}
-          />
-        </form>
-      </DialogForm>
-
-      <DialogForm
+      <CreateTaskForm
         open={taskDialogOpen}
-        onClose={() => {
-          setTaskDialogOpen(false)
-          taskForm.reset()
-          setSelectedProject(null)
-        }}
-        title="Create Task"
-        subtitle={selectedProject ? `Add a task to ${selectedProject.name}` : 'Create a task for a project'}
-        maxWidth="md"
-      >
-        <form onSubmit={taskForm.handleSubmit(handleCreateTask)} className="space-y-4">
-          <FormField label="Task name" required error={taskForm.formState.errors.name?.message}>
-            <FormInput
-              {...taskForm.register('name', { required: 'Task name is required' })}
-              placeholder="e.g. Build onboarding flow"
-            />
-          </FormField>
+        setOpen={setTaskDialogOpen}
+        project={selectedProject}
+        setProject={setSelectedProject} />
 
-          <FormField label="Description">
-            <FormTextarea
-              {...taskForm.register('description')}
-              placeholder="Describe the task details"
-            />
-          </FormField>
+      <EditProjectForm
+        open={editProjectDialogOpen}
+        setOpen={setEditProjectDialogOpen}
+        project={editingProject}
+        setProject={setEditingProject}
+      />
 
-          <FormField label="Project" required error={taskForm.formState.errors.projectId?.message}>
-            <FormSelect
-              {...taskForm.register('projectId', { required: 'Please select a project' })}
-              options={projectOptions}
-              placeholder="Select a project"
-            />
-          </FormField>
-
-          <FormField label="Assign to employee" required error={taskForm.formState.errors.ownerId?.message}>
-            <FormSelect
-              {...taskForm.register('ownerId', { required: 'Please select an employee' })}
-              options={taskProjectMembersOptions}
-              placeholder={taskProjectMembersOptions.length === 0 ? "No members in this project yet" : "Select employee"}
-              disabled={taskProjectMembersOptions.length === 0}
-            />
-          </FormField>
-
-          <FormActions
-            onCancel={() => {
-              setTaskDialogOpen(false)
-              taskForm.reset()
-              setSelectedProject(null)
-            }}
-            submitLabel="Create Task"
-            isSubmitting={createTaskMutation.isPending}
-          />
-        </form>
-      </DialogForm>
-
-      <DialogForm
+      <AssignEmployeeForm
         open={memberDialogOpen}
-        onClose={() => {
-          setMemberDialogOpen(false)
-          memberForm.reset()
-          setSelectedProject(null)
-        }}
-        title="Assign Employee"
-        subtitle={selectedProject ? `Add someone to ${selectedProject.name}` : 'Assign an employee to a project'}
-        maxWidth="md"
-      >
-        <form onSubmit={memberForm.handleSubmit(handleAssignMember)} className="space-y-4">
-          <FormField label="Employee" required error={memberForm.formState.errors.employeeId?.message}>
-            <FormSelect
-              {...memberForm.register('employeeId', { required: 'Please select an employee' })}
-              options={assignMemberOptions}
-              placeholder={assignMemberOptions.length === 0 ? "All employees assigned" : "Select employee"}
-              disabled={assignMemberOptions.length === 0}
-            />
-          </FormField>
-
-          <FormActions
-            onCancel={() => {
-              setMemberDialogOpen(false)
-              memberForm.reset()
-              setSelectedProject(null)
-            }}
-            submitLabel="Assign"
-            isSubmitting={assignMemberMutation.isPending}
-          />
-        </form>
-      </DialogForm>
+        setOpen={setMemberDialogOpen}
+        project={selectedProject}
+        setProject={setSelectedProject}
+      />
     </div>
   )
 }

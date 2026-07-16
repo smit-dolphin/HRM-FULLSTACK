@@ -1,7 +1,7 @@
 import React from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createColumnHelper } from '@tanstack/react-table'
-import { ArrowUpDown, Search, ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react'
+import { ArrowUpDown, Search, ChevronLeft, ChevronRight, Play, Pause, BriefcaseBusiness, ClipboardList } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { DataTable } from '@/components/ui/DataTable'
@@ -11,6 +11,7 @@ import { fetchMyTasksService } from '@/services/taskService/taskService'
 import { ActionMenu, type ActionMenuItem } from '@/components/ui/ActionMenu'
 import { useTaskStore } from '@/store/useTaskStore'
 import { activeTaskSessionQueryOptions, usePauseTaskSession, useStartTaskSession } from '@/querryOptions/taskSessionOptions'
+import { Users } from './Users'
 
 type TaskRow = {
     id: string
@@ -121,7 +122,34 @@ export default function Tasks() {
 
     return (
         <div className="space-y-6">
+      
             <PageHeader title="My Tasks" subtitle="Tasks assigned to you" />
+            <div className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-2xl border bg-card p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">Active projects</p>
+            <BriefcaseBusiness className="h-4 w-4 text-primary" />
+          </div>
+          <p className="mt-2 text-3xl font-semibold">{tasks.length}</p>
+        </div>
+        <div className="rounded-2xl border bg-card p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">Total tasks</p>
+            <ClipboardList className="h-4 w-4 text-primary" />
+          </div>
+          <p className="mt-2 text-3xl font-semibold">{tasks.length}</p>
+        </div>
+         <div className="rounded-2xl border bg-card p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">Total tasks</p>
+            <ClipboardList className="h-4 w-4 text-primary" />
+          </div>
+          <p className="mt-2 text-3xl font-semibold">{tasks.length}</p>
+        </div>
+         
+      </div>
+
+            
 
 
             <DataTable

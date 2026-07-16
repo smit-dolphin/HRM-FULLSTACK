@@ -17,6 +17,9 @@ import {
   Sun,
   ChevronRight,
   ChevronLeft,
+  Presentation,
+  KanbanSquareDashed,
+  ListTodo,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -26,14 +29,14 @@ import { useTaskStore } from '@/store/useTaskStore';
 
 const navItems: { icon: any; label: string; path: string; permission?: string }[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-  { icon: Plus, label: 'Tasks', path: '/task', permission: 'task:list:view' },
+  { icon: ListTodo, label: 'Tasks', path: '/task', permission: 'task:list:view' },
   { icon: UserRound, label: 'Users', path: '/users', permission: 'user:view' },
   { icon: Users, label: 'Employees', path: '/employees', permission: 'employee:view' },
   { icon: Building2, label: 'Departments', path: '/departments', permission: 'department:view' },
   { icon: CalendarDays, label: 'Leaves', path: '/leaves', permission: 'leave:request:view_own' },
   { icon: CalendarRange, label: 'Holidays', path: '/holidays', permission: 'holiday:view' },
   { icon: Plus, label: 'projects', path: '/projects', permission: 'project:list:view' },
-  { icon: Plus, label: 'Kanban Board', path: '/kanban', permission: 'task:list:view' },
+  { icon: KanbanSquareDashed, label: 'Kanban Board', path: '/kanban', permission: 'task:list:view' },
   { icon: Settings, label: 'Settings', path: '/settings', permission: 'leave:type:manage' },
 ];
 

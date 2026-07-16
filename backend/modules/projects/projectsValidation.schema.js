@@ -22,6 +22,11 @@ export const createProjectSchema = z.object({
       (value) => new Date(value) > new Date(),
       "Project deadline must be in the future."
     ),
+    managerId: z
+        .string()
+        .trim()
+        .min(1, "Manager id is required.")
+        .optional(),
 });
 
 export const ProjectStatusEnum = z.enum([

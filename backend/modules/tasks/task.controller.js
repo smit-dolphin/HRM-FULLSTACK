@@ -5,6 +5,7 @@ import {
   createTaskSchema,
   updateTaskSchema,
   updateTaskStatusSchema,
+  
 } from "./taskValidation.schema.js";
 
 export const createTask = async (req, res) => {
@@ -36,7 +37,7 @@ export const createTask = async (req, res) => {
       return errorResponse(res, 404, "Not found", "Project does not exist.");
     }
 
-    const owner = await prisma.employee.findUnique({ where: { id: ownerId }, include: { user: true } });
+    const owner = await prisma.employee.findUnique({ where: { id: ownerId }, include: { user: false } });
     if (!owner) {
       return errorResponse(res, 404, "Not found", "Owner employee does not exist.");
     }
@@ -55,7 +56,7 @@ export const createTask = async (req, res) => {
     }
 
     if (managerId) {
-      const manager = await prisma.employee.findUnique({ where: { id: managerId }, include: { user: true } });
+      const manager = await prisma.employee.findUnique({ where: { id: managerId }, include: { user: false } });
       if (!manager || manager.user.role !== "manager") {
         return errorResponse(res, 404, "Not found", "Manager does not exist.");
       }
@@ -152,9 +153,9 @@ export const getAllTasks = async (req, res) => {
       orderBy: { createdAt: "desc" },
       include: {
         project: true,
-        owner: { include: { user: true } },
-        manager: { include: { user: true } },
-        assignee: { include: { user: true } },
+        owner: { include: { user: false } },
+        manager: { include: { user: false } },
+        assignee: { include: { user: false } },
       },
     });
 
@@ -184,9 +185,9 @@ export const getMyTasks = async (req, res) => {
       orderBy: { createdAt: "desc" },
       include: {
         project: true,
-        owner: { include: { user: true } },
-        manager: { include: { user: true } },
-        assignee: { include: { user: true } },
+        owner: { include: { user: false } },
+        manager: { include: { user: false } },
+        assignee: { include: { user: false } },
       },
     });
 
@@ -207,9 +208,9 @@ export const getTaskById = async (req, res) => {
       where: { id },
       include: {
         project: true,
-        owner: { include: { user: true } },
-        manager: { include: { user: true } },
-        assignee: { include: { user: true } },
+        owner: { include: { user: false } },
+        manager: { include: { user: false } },
+        assignee: { include: { user: false } },
       },
     });
 
@@ -312,7 +313,7 @@ export const updateTask = async (req, res) => {
       if (role !== "admin") {
         return errorResponse(res, 403, "Access denied", "Only admins can reassign task manager.");
       }
-      const manager = await prisma.employee.findUnique({ where: { id: managerId }, include: { user: true } });
+      const manager = await prisma.employee.findUnique({ where: { id: managerId }, include: { user: false } });
       if (!manager || manager.user.role !== "manager") {
         return errorResponse(res, 404, "Not found", "Manager does not exist.");
       }
@@ -409,5 +410,113 @@ export const deleteTask = async (req, res) => {
     return successResponse(res, 200, "Task deleted successfully", null);
   } catch (error) {
     return errorResponse(res, 500, "Something went wrong", error.message);
+  }
+};
+
+
+export const getTaskReportById = async (req,res) => {
+  try {
+    const { id } = req.params;
+
+    const task = await prisma.tasks.findUnique({
+      where: {
+        id,
+      },
+      include: {
+        owner: {
+          include: {
+            user: true,
+          },
+        },
+        project: true,
+        sessions: {
+          include: {
+            timers: true,
+          },
+          orderBy: {
+            startedAt: "asc",
+          },
+        },
+      },
+    });
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: "Task not found",
+      });
+    }
+
+    let totalMilliseconds = 0;
+    let totalSessions = 0;
+
+    const sessionReport = task.sessions.map((session) => {
+      totalSessions++;
+
+      let sessionMilliseconds = 0;
+
+      const timers = session.timers.map((timer) => {
+        const end = timer.endedAt ?? new Date();
+
+        const duration =
+          end.getTime() - timer.startedAt.getTime();
+
+        sessionMilliseconds += duration;
+
+        return {
+          id: timer.id,
+          startedAt: timer.startedAt,
+          endedAt: timer.endedAt,
+          durationMinutes: Math.floor(duration / 60000),
+        };
+      });
+
+      totalMilliseconds += sessionMilliseconds;
+
+      return {
+        sessionId: session.id,
+        startedAt: session.startedAt,
+        endedAt: session.endedAt,
+        totalMinutes: Math.floor(sessionMilliseconds / 60000),
+        timers,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        taskId: task.id,
+        taskName: task.name,
+        status: task.status,
+
+        project: {
+          id: task.project.id,
+          name: task.project.name,
+        },
+
+        employee: {
+          id: task.owner.id,
+          name: `${task.owner.user.firstName} ${task.owner.user.lastName}`,
+          email: task.owner.user.email,
+        },
+
+        summary: {
+          totalSessions,
+          totalWorkedMinutes: Math.floor(totalMilliseconds / 60000),
+          totalWorkedHours: (
+            totalMilliseconds /
+            1000 /
+            60 /
+            60
+          ).toFixed(2),
+        },
+
+        sessions: sessionReport,
+      },
+    });
+  } catch (error) {
+     
+
+    return   errorResponse(res, 500, "Something went wrong", error.message);
   }
 };

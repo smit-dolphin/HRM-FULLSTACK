@@ -6,6 +6,8 @@ export interface Project {
   description?: string
   status: string
   ownerId: string
+  deadline?:string
+  managerId?:string
   createdAt?: string
   updatedAt?: string
 }

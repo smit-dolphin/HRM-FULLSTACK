@@ -38,7 +38,7 @@ const RolePermission = lazy(() => import('@/pages/RolePermission').then(m => ({ 
 const Holidays = lazy(() => import('@/pages/Holidays').then(m => ({ default: m.Holidays })))
 const KanbanBoard = lazy(() => import('@/pages/KanbanBoard').then(m => ({ default: m.KanbanBoard })))
 const Projects = lazy(() => import('@/pages/Projects').then(m => ({ default: m.Projects })))
-
+const ProjectDetailedPage = lazy(() => import('@/pages/ProjectDetailedPage').then(m => ({ default: m.ProjectDetailedPage })))
 
 export interface applayoutprop {
   children: ReactNode
@@ -160,6 +160,11 @@ const projectsRoute = createRoute({
   component: Projects,
 })
 
+const projectDetailRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: 'projects/$id',
+  component: ProjectDetailedPage,
+})
 // ---------------- Settings ----------------
 
 const settingsRoute = createRoute({
@@ -191,8 +196,9 @@ const routeTree = rootRoute.addChildren([
       holidaysRoute,
       kanbanRoute,
       projectsRoute,
+      projectDetailRoute,
       settingsRoute,
-      taskRoute
+      taskRoute,
     ]),
   ]),
 ])
@@ -204,37 +210,7 @@ const router= createRouter({
 })
 
 function App() {
-  return (
-    // <ErrorBoundary>
-    //   <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-    //     <Toaster richColors position="top-right" />
-    //     <BrowserRouter>
-    //       <Suspense fallback={<PageLoader />}>
-    //         <Routes>
-    //           <Route path="/login" element={<LoginPage />} />
-
-    //           <Route element={<ProtectedLayout />}>
-    //             <Route element={<AppLayout />}>
-    //               <Route index element={<Dashboard />} />
-    //               <Route path="users" element={<RouteGuard permission="user:view"><Users /></RouteGuard>} />
-    //               <Route path="employees" element={<RouteGuard permission="employee:view"><Employees /></RouteGuard>} />
-    //               <Route path="departments" element={<RouteGuard permission="department:view"><Departments /></RouteGuard>} />
-    //               <Route path="departments/:id" element={<RouteGuard permission="department:view"><DepartmentDetail /></RouteGuard>} />
-    //               <Route path="permissions/:id" element={<RouteGuard permission="department:view"><RolePermission /></RouteGuard>} />
-    //               <Route path="leaves" element={<RouteGuard permission="leave:request:view_own"><LeaveDashboard /></RouteGuard>} />
-    //               <Route path="holidays" element={<RouteGuard permission="holiday:view"><Holidays /></RouteGuard>} />
-    //               <Route path="kanban" element={<KanbanBoard />} />
-    //               <Route path="projects" element={<Projects />} />
-    //               <Route path="settings" element={<RouteGuard permission="leave:type:edit"><Settings /></RouteGuard>} />
-    //             </Route>
-    //           </Route>
-
-    //           <Route path="*" element={<Navigate to="/login" replace />} />
-    //         </Routes>
-    //       </Suspense>
-    //     </BrowserRouter>
-    //   </ThemeProvider>
-    // </ErrorBoundary>
+  return ( 
     <RouterProvider router={router}/>
   )
 }

@@ -20,6 +20,7 @@ import {
   Presentation,
   KanbanSquareDashed,
   ListTodo,
+  BookAudio,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -45,6 +46,15 @@ const navItems: NavItem[] = [
     children: [
       { label: 'Project Dashboard', path: '/projects/dashboard',permission:'project:dashboard:view' },
       { label: 'Projects', path: '/projects' },
+    ],
+  },
+  {
+    icon: BookAudio,
+    label: 'Reports',
+    
+    children: [
+      { label: 'Attendence Report', path: '/report/dashboard' },
+      { label: 'Work Report', path: '/report' },
     ],
   },
   { icon: KanbanSquareDashed, label: 'Kanban Board', path: '/kanban', permission: 'task:list:view' },

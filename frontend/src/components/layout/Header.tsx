@@ -20,6 +20,7 @@ import { fetchMyTasksService, type Task } from '@/services/taskService/taskServi
 import { useTaskStore } from '@/store/useTaskStore'
 import { useShallow } from 'zustand/react/shallow'
 import useTaskTimer from '@/hooks/useTaskTimer'
+import Swal from "sweetalert2"
 
 
 
@@ -86,19 +87,19 @@ export function Header({
   //   ? activeSession.task
   //   : undefined
 
-   const activeSession = useQuery(activeTaskSessionQueryOptions)
-  const activetask = React.useMemo(()=>{ return activeSession.data?.task},[activeSession])
+  const activeSession = useQuery(activeTaskSessionQueryOptions)
+  const activetask = React.useMemo(() => { return activeSession.data?.task }, [activeSession])
   // console.log(activetask)
   React.useEffect(() => {
-  if (
-  activeSession.data?.taskSessionStatus === "running" &&
-  activetask &&
-  currentTask === null
-) {
-  addTask(activetask as Task)
-  changeStatus("play")
-}
-}, [activetask, currentStatus, currentTask])
+    if (
+      activeSession.data?.taskSessionStatus === "running" &&
+      activetask &&
+      currentTask === null
+    ) {
+      addTask(activetask as Task)
+      changeStatus("play")
+    }
+  }, [activetask, currentStatus, currentTask])
 
   const handlePlay = (taskToPlay: any) => {
     setCurrentTask(taskToPlay)
@@ -112,15 +113,59 @@ export function Header({
     changeStatus("pause")
   }
 
-  const handleStop = () => {
+ const swalWithBootstrapButtons = Swal.mixin({
+  customClass: {
+    confirmButton:
+      "bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700",
+    cancelButton:
+      "bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300 mr-2",
+  },
+  buttonsStyling: false,
+});
+
+  // const handleStop = () => {
+
+  //   if (currentTask?.id) {
+  //     completeTask.mutate(currentTask.id)
+  //     changeStatus("stop")
+  //     clearCurrentTask()
+  //   }
+  // }
+
+const handleStop = async () => {
+  const result = await swalWithBootstrapButtons.fire({
+    title: "Complete Task?",
+    text: "This will stop the timer and mark the task as completed.",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Yes, Complete",
+    cancelButtonText: "Cancel",
+    reverseButtons: true,
+  });
+
+  if (result.isDismissed) {
+    await swalWithBootstrapButtons.fire({
+      title: "Cancelled",
+      text: "Your task is still running.",
+      icon: "info", // or "error" if you prefer
+    });
+    return;
+  }
+
     if (currentTask?.id) {
       completeTask.mutate(currentTask.id)
       changeStatus("stop")
       clearCurrentTask()
-    }
+    
+    await swalWithBootstrapButtons.fire({
+      title: "Completed!",
+      text: "Task completed successfully.",
+      icon: "success",
+      timer: 1500,
+      showConfirmButton: false,
+    });
   }
-
-
+};
 
 
   const handleHeaderToggle = () => {
@@ -129,7 +174,7 @@ export function Header({
     // } else
     if (currentTask && currentStatus === "pause") {
       handlePlay(currentTask)
-    } else if(currentTask && currentStatus === "play"){
+    } else if (currentTask && currentStatus === "play") {
       handlePause(currentTask.id)
     }
   }
@@ -187,7 +232,7 @@ export function Header({
                   <span
                     className={cn(
                       "font-mono text-base font-semibold tracking-wider",
-                      currentStatus!=="play" && "text-red-600"
+                      currentStatus !== "play" && "text-red-600"
                     )}
                   >
                     {currentrCalculatedTimer}
@@ -201,7 +246,7 @@ export function Header({
                 className="h-10 rounded-none border-l px-3"
                 onClick={handleHeaderToggle}
               >
-                {  currentStatus!=="play" ? (
+                {currentStatus !== "play" ? (
                   <Play className="h-4 w-4 fill-current text-green-600" />
                 ) : (
                   <Pause className="h-4 w-4 fill-current text-amber-600" />

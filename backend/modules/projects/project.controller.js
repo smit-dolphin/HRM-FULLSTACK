@@ -3,6 +3,7 @@ import successResponse from "../../helper/successResponse.js"
 import prisma from "../../config/prisma.config.js"
 import { createProjectSchema, updateProjectStatusSchema, addProjectMemberSchema, updateProjectSchema } from "./projectsValidation.schema.js"
 import checkPermission from "../../helper/checkPermission.js"
+import { canUpdateProject, canAddOrRemoveMember, canViewProjectById, getProjectFilterWhereClause } from "./project.authorization.js"
 
 
 
@@ -118,22 +119,7 @@ export const updateStatusProject = async (req, res) => {
         if (!isProjectExixt) return errorResponse(res, 404, "Not found", "Project does not exist.")
 
 
-        //buissness logic
-        //what is my goal prevent if role is not admin or manager,how can i do thet
-        let canUpdate = false
-        if (role === "admin") {
-            canUpdate = true
-            //then can update a status
-        }
-        else if (role === "manager") {
-            const managerEmployee = await prisma.employee.findUnique({ where: { userId: req.user.id } })
-            if (managerEmployee !== null && (managerEmployee.id === isProjectExixt.managerId)) {
-                canUpdate = true
-            }
-        }
-        else {
-            canUpdate = false
-        }
+        const canUpdate = await canUpdateProject(req.user, isProjectExixt);
 
         if (!canUpdate) {
             return errorResponse(res, 403, "Access denied", "Only admins and assigned managers can update project status.")
@@ -200,24 +186,7 @@ export const updateProject = async (req, res) => {
         }
 
         // ---------- Permission ----------
-        let canUpdate = false;
-
-        if (role === "admin") {
-            canUpdate = true;
-        } else if (role === "manager") {
-            const managerEmployee = await prisma.employee.findUnique({
-                where: {
-                    userId: req.user.id,
-                },
-            });
-
-            if (
-                managerEmployee &&
-                managerEmployee.id === project.managerId
-            ) {
-                canUpdate = true;
-            }
-        }
+        const canUpdate = await canUpdateProject(req.user, project);
 
         if (!canUpdate) {
             return errorResponse(
@@ -324,12 +293,9 @@ export const addProjectMember = async (req, res) => {
             return errorResponse(res, 409, "Conflict", "Employee is already a member of this project.");
         }
 
-        const role = req.user.role;
-        if (role !== "admin") {
-            const managerEmployee = await prisma.employee.findUnique({ where: { userId: req.user.id } });
-            if (!managerEmployee || managerEmployee.id !== project.managerId) {
-                return errorResponse(res, 403, "Access denied", "Only admins or the assigned manager can add members.");
-            }
+        const canAdd = await canAddOrRemoveMember(req.user, project);
+        if (!canAdd) {
+            return errorResponse(res, 403, "Access denied", "Only admins or the assigned manager can add members.");
         }
 
         const projectMember = await prisma.projectMember.create({
@@ -352,36 +318,16 @@ export const getAllProjects = async (req, res) => {
         // - Manager -> Can view only projects they manage.
         // - Team Leader & Employee -> Can view only projects they are members of.
 
-        const role = req.user.role;
-
-        const where = {};
-
-        if (role !== "admin" && role !== "superadmin") {
-            const currentEmployee = await prisma.employee.findUnique({
-                where: {
-                    userId: req.user.id,
-                },
-            });
-
-            if (!currentEmployee) {
-                return errorResponse(
-                    res,
-                    404,
-                    "Not found",
-                    "Employee record not found."
-                );
-            }
-
-            if (role === "manager") {
-                where.managerId = currentEmployee.id;
-            } else {
-                where.members = {
-                    some: {
-                        employeeId: currentEmployee.id,
-                    },
-                };
-            }
+        const filterResult = await getProjectFilterWhereClause(req.user);
+        if (!filterResult.success) {
+            return errorResponse(
+                res,
+                404,
+                "Not found",
+                filterResult.error
+            );
         }
+        const where = filterResult.where;
 
         const fetchedProjects = await prisma.project.findMany({
             where,
@@ -499,41 +445,22 @@ export const getProjectById = async (req, res) => {
             );
         }
 
-        // Admin & Super Admin can view any project
-        if (role !== "admin" && role !== "superadmin") {
-            const currentEmployee = await prisma.employee.findUnique({
-                where: {
-                    userId: req.user.id,
-                },
-            });
-
-            if (!currentEmployee) {
+        const viewAuth = await canViewProjectById(req.user, project);
+        if (!viewAuth.allowed) {
+            if (viewAuth.error) {
                 return errorResponse(
                     res,
                     404,
                     "Not found",
-                    "Employee record not found."
+                    viewAuth.error
                 );
             }
-
-            let canView = false;
-
-            if (role === "manager") {
-                canView = project.managerId === currentEmployee.id;
-            } else {
-                canView = project.members.some(
-                    (member) => member.employeeId === currentEmployee.id
-                );
-            }
-
-            if (!canView) {
-                return errorResponse(
-                    res,
-                    403,
-                    "Access denied",
-                    "You do not have permission to view this project."
-                );
-            }
+            return errorResponse(
+                res,
+                403,
+                "Access denied",
+                "You do not have permission to view this project."
+            );
         }
 
         return successResponse(
@@ -606,11 +533,9 @@ export const removeMember = async (req, res) => {
         }
 
         // Check permissions
-        if (req.user.role !== "admin") {
-            const managerEmployee = await prisma.employee.findUnique({ where: { userId: req.user.id } });
-            if (!managerEmployee || managerEmployee.id !== project.managerId) {
-                return errorResponse(res, 403, "Access denied", "Only admins or the assigned manager can remove members.");
-            }
+        const canRemove = await canAddOrRemoveMember(req.user, project);
+        if (!canRemove) {
+            return errorResponse(res, 403, "Access denied", "Only admins or the assigned manager can remove members.");
         }
 
         await prisma.projectMember.delete({

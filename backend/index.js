@@ -15,6 +15,7 @@ import { projectRouter } from "./modules/projects/project.routes.js"
 import { taskRouter } from "./modules/tasks/task.route.js"
 import { taskSessionsRouter } from "./modules/tasksessions/tasksessions.route.js"
 import { dashboardRouter } from "./modules/dashboard/dashboard.router.js"
+import { reportRouter } from "./modules/report/report.route.js"
 
 // import path from "path"
 // import { fileURLToPath } from "url"
@@ -42,6 +43,7 @@ app.use('/api/project',projectRouter)
 app.use('/api/task', taskRouter)
 app.use('/api/task-session', taskSessionsRouter)
 app.use('/api/dashboard',dashboardRouter)
+app.use('/api/report', reportRouter)
 
 
 // console.log(import.meta.dirname)

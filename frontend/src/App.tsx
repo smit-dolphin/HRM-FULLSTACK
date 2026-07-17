@@ -40,6 +40,8 @@ const KanbanBoard = lazy(() => import('@/pages/KanbanBoard').then(m => ({ defaul
 const Projects = lazy(() => import('@/pages/Projects').then(m => ({ default: m.Projects })))
 const ProjectDetailedPage = lazy(() => import('@/pages/ProjectDetailedPage').then(m => ({ default: m.ProjectDetailedPage })))
 const ProjectDashboard=lazy(() => import('@/pages/projects/ProjectDashboard').then(m => ({ default: m.ProjectDashboard })))
+const AttendanceReport = lazy(() => import('@/pages/reports/AttendanceReport').then(m => ({ default: m.AttendanceReport })))
+const WorkReport = lazy(() => import('@/pages/reports/WorkReport').then(m => ({ default: m.WorkReport })))
 
 export interface applayoutprop {
   children: ReactNode
@@ -186,6 +188,20 @@ const taskRoute = createRoute({
   component: () =><Tasks />,
 })
 
+// ---------------- Reports ----------------
+
+const attendanceReportRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: "report/dashboard",
+  component: AttendanceReport,
+})
+
+const workReportRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: "report",
+  component: WorkReport,
+})
+
 // ---------------- Route Tree ----------------
 
 const routeTree = rootRoute.addChildren([
@@ -206,8 +222,9 @@ const routeTree = rootRoute.addChildren([
       projectDetailRoute,
       settingsRoute,
       taskRoute,
-      peojectDashboardRoute 
-
+      peojectDashboardRoute,
+      attendanceReportRoute,
+      workReportRoute
     ]),
   ]),
 ])

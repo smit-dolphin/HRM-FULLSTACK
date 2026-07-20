@@ -30,7 +30,8 @@ export const createProject = async (req, res) => {
         // }
 
         const userId=req.user.id
-        if(!checkPermission(userId,"project:create")){
+        
+        if(!await checkPermission(userId,"project:create")){
             return errorResponse(res, 403, "Access denied", "not have permission to create project.")
 
         }

@@ -15,6 +15,11 @@ enum Role {
   employee
 }
 
+model Roles {
+  id String @id @default(cuid())
+   String
+}
+
 model User {
   id       String @id @default(cuid())
   name     String

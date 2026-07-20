@@ -115,6 +115,7 @@ export async function signin(req, res) {
         return res.status(200).cookie('accessToken', accessToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
+            path: "/",
             sameSite: "strict",
             maxAge: 12* 60 * 60 * 1000
         }).json({ success: true, message: "user loggedin successfully", data: {...newuserdata,permissions} })

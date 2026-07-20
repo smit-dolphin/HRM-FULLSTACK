@@ -42,7 +42,7 @@ export const createLeaveType = async (req, res) => {
     try {
 
         const result = createLeaveTypeValidation.safeParse(req.body)
-        if (!result.success) errorResponse(res, 400, "enter valid fields", result.error.issues[0].message);
+        if (!result.success)  return errorResponse(res, 400, "enter valid fields", result.error.issues[0].message);
         const { name, description, defaultDays, isPaid, requiresApproval } = result.data;
         const leaveType = await prisma.leaveType.create({
             data: { name, description, defaultDays, isPaid, requiresApproval }
@@ -57,7 +57,7 @@ export const updateLeaveType = async (req, res) => {
     try {
         const id = req.params.id;
         const result = updateLeaveTypeValidation.safeParse(req.body)
-        if (!result.success) errorResponse(res, 400, "enter valid fields", result.error.issues[0].message);
+        if (!result.success) return errorResponse(res, 400, "enter valid fields", result.error.issues[0].message);
         const { name, description, defaultDays, isPaid, requiresApproval } = result.data;
         const existingLeave = await prisma.leaveType.findUnique({ where: { id } })
         if (!existingLeave) return errorResponse(res, 404, "Leave type not found", "Invalid id")

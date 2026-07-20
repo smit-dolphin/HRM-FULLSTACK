@@ -9,23 +9,59 @@ import { canManageRole } from "../../helper/higherarchiValidator.js"
 
 
 // Calculate working days excluding weekends (basic implementation, no holiday table check yet for brevity, but we'll include weekends)
-function calculateWorkingDays(startDate, endDate) {
+// function calculateWorkingDays(startDate, endDate) {
+//     let count = 0;
+//     let curDate = new Date(startDate);
+//     let end = new Date(endDate);
+//     while (curDate <= end) {
+//         const dayOfWeek = curDate.getDay();
+//         if (dayOfWeek !== 0 && dayOfWeek !== 6) count++;
+//         curDate.setDate(curDate.getDate() + 1);
+//     }
+//     return count;
+// }
+async function calculateWorkingDays(startDate, endDate) {
     let count = 0;
     let curDate = new Date(startDate);
     let end = new Date(endDate);
+
+    // 1. fetch all holidays that fall inside this leave range, ONCE
+    const holidays = await prisma.holiday.findMany({
+        where: {
+            date: {
+                gte: startDate,
+                lte: endDate
+            }
+        },
+        select: { date: true }
+    });
+
+    // 2. put them in a Set for fast lookup (as "YYYY-MM-DD" strings)
+    const holidaySet = new Set(
+        holidays.map(h => h.date.toISOString().split('T')[0])
+    );
+
+    // 3. loop same as before, but also skip holiday dates
     while (curDate <= end) {
         const dayOfWeek = curDate.getDay();
-        if (dayOfWeek !== 0 && dayOfWeek !== 6) count++;
+        const dateStr = curDate.toISOString().split('T')[0];
+
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        const isHoliday = holidaySet.has(dateStr);
+
+        if (!isWeekend && !isHoliday) count++;
+
         curDate.setDate(curDate.getDate() + 1);
     }
+
     return count;
 }
-
 
 
 export async function getAllLeaves(req, res) {
     try {
         const employee = await prisma.employee.findUnique({ where: { userId: req.user.id } });
+        const departmentid=employee.departmentId
         
         // Ensure non-superadmins have an employee profile
         if (!employee && req.user.role !== 'superadmin') {
@@ -45,6 +81,10 @@ export async function getAllLeaves(req, res) {
                             in: ['manager', 'teamleader', 'employee']
                         }
                     }
+                    ,departmentId:departmentid
+                    
+                    
+                    
                 };
             } else if (req.user.role === 'teamleader') {
                 filter.employee = {
@@ -55,6 +95,8 @@ export async function getAllLeaves(req, res) {
                             in: ['teamleader', 'employee']
                         }
                     }
+                    ,departmentId:departmentid
+                    
                 };
             } else {
                 return errorResponse(res, 403, "Forbidden", "You are not authorized to view all leaves");
@@ -80,7 +122,8 @@ export async function getAllLeaves(req, res) {
                 include: {
                     employee: {
                         include: {
-                            user: { select: { id: true, name: true, email: true } }
+                            user: { select: { id: true, name: true, email: true } },
+                            department:true
                         }
                     },
                     leaveType: true,
@@ -131,19 +174,7 @@ export async function getMyLeaves(req, res) {
 export async function getLeavesById(req, res) {
     try {
         const { id } = req.params;
-        // if(req.user.role!=="superadmin" || req.user.role!=="admin"||req.user.role!=="manager"){
-
-        //     const leave = await prisma.leaveRequest.findUnique({
-        //     where: { id },
-        //     include: {
-        //         employee: { include: { user: { select: { id: true, name: true, email: true } } } },
-        //         leaveType: true,
-        //         histories: { include: { actionBy: { include: { user: { select: { name: true } } } } } }
-        //     }
-        // });
-        //  return successResponse(res, 200, "Leave status fetched successfully", leave);
-
-        // }
+        
         const leave = await prisma.leaveRequest.findUnique({
             where: { id },
             include: {
@@ -160,25 +191,6 @@ export async function getLeavesById(req, res) {
     }
 }
 
-// export async function getLeaveByEmployeeId(req,res){
-//     try {
-//         const { employeeId } = req.params;
-
-//         const leave = await prisma.leaveRequest.findUnique({
-//             where: { employeeId },
-//             include: {
-//                 employee: { include: { user: { select: { id: true, name: true, email: true } } } },
-//                 leaveType: true,
-//                 histories: { include: { actionBy: { include: { user: { select: { name: true } } } } } }
-//             }
-//         });
-//         if (!leave) return errorResponse(res, 404, "Leave does not exist", "Invalid leave id");
-
-//         return successResponse(res, 200, "Leave status fetched successfully", leave);
-//     } catch (error) {
-//         return errorResponse(res, 500, "Something went wrong", error.message);
-//     }
-// }
 
 
 export async function createLeave(req, res) {
@@ -198,7 +210,7 @@ export async function createLeave(req, res) {
         const overlap = await prisma.leaveRequest.findFirst({
             where: {
                 employeeId: employee.id,
-                status: { not: "cancelled" },
+                status: { not:{ in:["cancelled","rejected"]}  },
                 endDate: { gte: new Date(startDate) },
                 startDate: { lte: new Date(endDate) }
             }

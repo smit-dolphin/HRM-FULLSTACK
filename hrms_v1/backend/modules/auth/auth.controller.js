@@ -113,10 +113,10 @@ export async function signin(req, res) {
 
 
         return res.status(200).cookie('accessToken', accessToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            path: "/",
-            sameSite: "strict",
+            httpOnly: true,//cookie only handle over https& by browser no js allowed,block xss cross site scripting
+            secure: process.env.NODE_ENV === "production",//only works on https
+            path: "/",//exect path it saves itself
+            sameSite: "strict",//saves from Cross-Site Request Forgery (CSRF) 
             maxAge: 12* 60 * 60 * 1000
         }).json({ success: true, message: "user loggedin successfully", data: {...newuserdata,permissions} })
 

@@ -164,3 +164,30 @@ export async function changePasswordService(userId,reqBody){
     }
 
 }
+
+export async function getProfileService(userID){
+    const user = await getUser({
+        id:userID,
+    },{
+        include:{
+            employee:true
+        }
+    })
+
+    if (!user) {
+        return {
+            status: 404,
+            message: "The requested user profile does not exist.",
+            error: "user not found",
+            success: false
+        }
+    }
+
+    const {password,...currentUser}=user
+    return {
+        status: 200,
+        message: "user sign in successfully",
+        data: currentUser,
+        success: true
+    }
+}

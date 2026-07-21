@@ -1,7 +1,7 @@
 import asyncHandler from "../../helper/asyncHandler.js";
 import errorResponse from "../../helper/errorResponse.js";
 import successResponse from "../../helper/successResponse.js";
-import {signInUser,changePasswordService} from "./auth.service.js";
+import {signInUser,changePasswordService, getProfileService} from "./auth.service.js";
 
 
 
@@ -47,6 +47,22 @@ export const changePassword= asyncHandler( async (req,res)=>{
     
 
      const result =await changePasswordService(userId,req.body)
+
+    if (!result.success){
+        return errorResponse(res,result.status,result.message,result.error)
+    }
+
+    return  successResponse(res,result.status,result.message,result.data)
+    
+})
+
+
+export const getProfile= asyncHandler( async (req,res)=>{
+
+    const userId=req.user.id  
+    
+
+     const result =await getProfileService(userId,req.body)
 
     if (!result.success){
         return errorResponse(res,result.status,result.message,result.error)

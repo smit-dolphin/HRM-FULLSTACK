@@ -1,74 +1,58 @@
-import { PrismaClient, Gender } from "@prisma/client";
-import bcrypt from "bcrypt";
+import { PrismaClient, Scope } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-async function seedSuperAdmin() {
-  // Get existing department & designation
-  const department = await prisma.department.findFirst();
-  const designation = await prisma.designation.findFirst();
-
-  if (!department || !designation) {
-    throw new Error(
-      "Please seed Department and Designation before creating Super Admin."
-    );
-  }
-
-  // Create Super Admin role if it doesn't exist
-  const superAdminRole = await prisma.role.upsert({
+async function main() {
+  const superAdminRole = await prisma.role.findUnique({
     where: {
       name: "Super Admin",
     },
-    update: {},
-    create: {
-      name: "Super Admin",
-      description: "System Owner",
-    },
   });
 
-  // Check if admin already exists
-  const existingUser = await prisma.user.findUnique({
-    where: {
-      email: "admin@hrms.com",
-    },
-  });
-
-  if (existingUser) {
-    console.log("✅ Super Admin already exists.");
-    return;
+  if (!superAdminRole) {
+    throw new Error("SUPER_ADMIN role not found.");
   }
 
-  const hashedPassword = await bcrypt.hash("Admin@123", 10);
+  const permissions = [
+    { resource: "user", action: "create" },
+    { resource: "user", action: "list" },
+    { resource: "user", action: "read" },
+    { resource: "user", action: "update" },
+    { resource: "user", action: "delete" },
+  ];
 
-  await prisma.user.create({
-    data: {
-      email: "admin@hrms.com",
-      password: hashedPassword,
-      roleId: superAdminRole.id,
-
-      employee: {
-        create: {
-          firstName: "Super",
-          lastName: "Admin",
-          phone: "9999999999",
-          dateOfBirth: new Date("2000-01-01"),
-          joiningDate: new Date(),
-          gender: Gender.MALE,
-
-          departmentId: department.id,
-          designationId: designation.id,
+  for (const permission of permissions) {
+    const createdPermission = await prisma.permission.upsert({
+      where: {
+        resource_action: {
+          resource: permission.resource,
+          action: permission.action,
         },
       },
-    },
-  });
+      update: {},
+      create: permission,
+    });
 
-  console.log("✅ Super Admin created successfully.");
+    await prisma.rolePermission.upsert({
+      where: {
+        roleId_permissionId: {
+          roleId: superAdminRole.id,
+          permissionId: createdPermission.id,
+        },
+      },
+      update: {
+        scope: Scope.COMPANY,
+      },
+      create: {
+        roleId: superAdminRole.id,
+        permissionId: createdPermission.id,
+        scope: Scope.COMPANY,
+      },
+    });
+  }
+
+  console.log("✅ Super Admin permissions seeded.");
 }
 
-seedSuperAdmin()
-  .catch((err) => {
-    console.error(err);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+main()
+  .finally(() => prisma.$disconnect());

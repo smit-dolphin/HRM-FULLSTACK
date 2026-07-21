@@ -32,13 +32,13 @@ export default async function authenticatUser(req, res, next) {
         }
         // i have new schemas as role permissions 
         req.user = {
-            id: verifiedUser.id,
-            email: verifiedUser.email,
-            roleId: verifiedUser.roleId,
-            employeeId: verifiedUser.employee?.id
+            id: varifiedUser.id,
+            email: varifiedUser.email,
+            roleId: varifiedUser.roleId,
+            employeeId: varifiedUser.employee?.id
         }
         next()
-    } catch (error) {
+    } catch (error) { 
         return errorResponse(res, 401, "something went wrong", "unautherized access denied")
     }
 }

@@ -1,13 +1,18 @@
-import { Router } from "express";
-import {signin, signout, signup} from "./auth.controller.js"; 
+import {
+    Router
+} from "express";
+import {
+    changePassword,
+    signin,
+    signout
+} from "./auth.controller.js";
+import authenticatUser from "../../middleware/authenticate.middleware.js";
 
-const router=Router()
+const router = Router()
 
 router
-.post('/signin',signin)
-.post('/signout',signout)
+    .post('/signin', signin) 
+    .post('/signout',signout)
+    .post('/change-password',authenticatUser,changePassword)
 
-router.get('/me',myProfile)
-
-
-export const authRouter=router
+export const authRouter = router

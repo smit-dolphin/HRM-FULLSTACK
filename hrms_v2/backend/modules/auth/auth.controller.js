@@ -1,6 +1,7 @@
-import asyncHandler from "../../helper/asyncHandler";
-import errorResponse from "../../helper/errorResponse";
-import successResponse from "../../helper/successResponse";
+import asyncHandler from "../../helper/asyncHandler.js";
+import errorResponse from "../../helper/errorResponse.js";
+import successResponse from "../../helper/successResponse.js";
+import {signInUser,changePasswordService} from "./auth.service.js";
 
 
 
@@ -26,9 +27,31 @@ export const signin = asyncHandler( async (req,res)=>{
         secure: process.env.NODE_ENV === "production",//only works on https
         path: "/",//exect path it saves itself
         sameSite: "strict",//saves from Cross-Site Request Forgery (CSRF)
-        maxAge: 12* 60 * 60 * 1000
+        maxAge: 12* 60 * 60 * 1000*7
 
     }).json({ success: true, message: result.message, data: {...result.data} })
     
 
+})
+
+
+export const signout= asyncHandler( async (req,res)=>{
+
+    return res.status(200).clearCookie('accessToken').json({ success: true, message: "user sign out successfully", data:{} })
+    
+})
+
+export const changePassword= asyncHandler( async (req,res)=>{
+
+    const userId=req.user.id
+    
+
+     const result =await changePasswordService(userId,req.body)
+
+    if (!result.success){
+        return errorResponse(res,result.status,result.message,result.error)
+    }
+
+    return  successResponse(res,result.status,result.message,result.data)
+    
 })

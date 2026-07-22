@@ -60,6 +60,7 @@ enum Scope{
 SELF
 TEAM
 DEPARTMENT
+SUBORDINATES
 COMPANY
 }
 
@@ -87,6 +88,21 @@ enum Gender {
   FEMALE
   OTHER
 }
+
+enum EmployeeStatus {
+  PROBATION
+  NOTICE_PERIOD
+  ACTIVE
+  RESIGNED
+  TERMINATED
+}
+
+enum EmployeeType{
+  FULL_TIME
+  INTERN
+  CONTRACT
+}
+
 model Employee {
   id String @id @default(cuid())
 
@@ -114,6 +130,20 @@ model Employee {
 
   userId String @unique
   user   User   @relation(fields: [userId], references: [id])
+
+
+
+  salary Int @default(0)
+
+  probationStart DateTime?
+  probationEnd DateTime?
+
+  noticePeriodDays Int @default(0)
+
+  employmentStatus EmployeeStatus @default(PROBATION)
+  employeeType EmployeeType @default(INTERN)
+
+
    
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -148,4 +178,28 @@ model Designation {
   employees Employee[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+
+model CompneySettings{
+  id   String @id @default(cuid())
+  
+  companyName String
+  timezone    String
+  currency    String
+
+  officeStartTime DateTime?
+  officeEndTime   DateTime?
+  workingHours    Int
+
+  defaultProbationMonths Int
+  defaultNoticePeriodDays Int
+
+  lateGraceMinutes Int
+
+  weeklyOffDays String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
 }

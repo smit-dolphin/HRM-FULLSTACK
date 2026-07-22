@@ -2,57 +2,58 @@ import { PrismaClient, Scope } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-async function main() {
-  const superAdminRole = await prisma.role.findUnique({
+async function seedHrRole() {
+  // Create or get HR role
+  const hrRole = await prisma.role.upsert({
     where: {
-      name: "Super Admin",
+      name: "HR",
+    },
+    update: {},
+    create: {
+      name: "HR",
+      description: "Human Resources",
     },
   });
 
-  if (!superAdminRole) {
-    throw new Error("SUPER_ADMIN role not found.");
-  }
-
-  const permissions = [
-    { resource: "user", action: "create" },
-    { resource: "user", action: "list" },
-    { resource: "user", action: "read" },
-    { resource: "user", action: "update" },
-    { resource: "user", action: "delete" },
-  ];
-
-  for (const permission of permissions) {
-    const createdPermission = await prisma.permission.upsert({
-      where: {
-        resource_action: {
-          resource: permission.resource,
-          action: permission.action,
-        },
+  // Create or get permission
+  const createEmployeePermission = await prisma.permission.upsert({
+    where: {
+      resource_action: {
+        resource: "employee",
+        action: "create",
       },
-      update: {},
-      create: permission,
-    });
+    },
+    update: {},
+    create: {
+      resource: "employee",
+      action: "create",
+      description: "Can onboard new employees",
+    },
+  });
 
-    await prisma.rolePermission.upsert({
-      where: {
-        roleId_permissionId: {
-          roleId: superAdminRole.id,
-          permissionId: createdPermission.id,
-        },
+  // Assign permission to HR
+  await prisma.rolePermission.upsert({
+    where: {
+      roleId_permissionId: {
+        roleId: hrRole.id,
+        permissionId: createEmployeePermission.id,
       },
-      update: {
-        scope: Scope.COMPANY,
-      },
-      create: {
-        roleId: superAdminRole.id,
-        permissionId: createdPermission.id,
-        scope: Scope.COMPANY,
-      },
-    });
-  }
+    },
+    update: {
+      scope: Scope.COMPANY,
+    },
+    create: {
+      roleId: hrRole.id,
+      permissionId: createEmployeePermission.id,
+      scope: Scope.COMPANY,
+    },
+  });
 
-  console.log("✅ Super Admin permissions seeded.");
+  console.log("✅ HR role seeded with employee:create:COMPANY");
 }
 
-main()
-  .finally(() => prisma.$disconnect());
+seedHrRole()
+  .catch(console.error)
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

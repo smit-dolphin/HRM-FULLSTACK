@@ -4,6 +4,8 @@ import cors from 'cors'
 import "dotenv/config"
 import { authRouter } from './modules/auth/auth.router.js'
 import bodyParser from 'body-parser'
+import { userRouter } from './modules/user/user.router.js'
+import { employeeRouter } from './modules/employee/employee.router.js'
 
 
 const app=express()
@@ -27,6 +29,8 @@ app.use(cookieParser())
 
 
 app.use('/api/auth',authRouter)
+app.use('/api/user',userRouter)
+app.use('/api/employee',employeeRouter)
 
 app.listen(process.env.PORT, () => {
     console.log("Server running on PORT", process.env.PORT)

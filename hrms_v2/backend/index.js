@@ -6,6 +6,11 @@ import { authRouter } from './modules/auth/auth.router.js'
 import bodyParser from 'body-parser'
 import { userRouter } from './modules/user/user.router.js'
 import { employeeRouter } from './modules/employee/employee.router.js'
+import { authorizationRouter } from './modules/authorization/authorization.router.js'
+import { settingRouter } from './modules/setting/setting.route.js'
+import { departmentRouter } from './modules/department/department.router.js'
+import { designationRouter } from './modules/designation/designation.router.js'
+import { holidayRouter } from './modules/holiday/holiday.router.js'
 
 
 const app=express()
@@ -31,6 +36,11 @@ app.use(cookieParser())
 app.use('/api/auth',authRouter)
 app.use('/api/user',userRouter)
 app.use('/api/employee',employeeRouter)
+app.use('/api/authorization',authorizationRouter)
+app.use('/api/setting',settingRouter)
+app.use('/api/department',departmentRouter)
+app.use('/api/designation',designationRouter)
+app.use('/api/holiday',holidayRouter)
 
 app.listen(process.env.PORT, () => {
     console.log("Server running on PORT", process.env.PORT)

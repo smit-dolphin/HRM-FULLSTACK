@@ -32,6 +32,7 @@ export function authorize(resource, action) {
             next()
         } catch (error) {
             return errorResponse(res, 403, "something went wrong", "internel server error")
+            // return errorResponse(res, 403, "something went wrong", error.message)
         }
     }
 }

@@ -6,7 +6,7 @@ CREATE TABLE "CompneySettings" (
     "currency" TEXT NOT NULL,
     "officeStartTime" TIMESTAMP(3),
     "officeEndTime" TIMESTAMP(3),
-    "workingHours" INTEGER NOT NULL,
+    "workingMinutes" INTEGER NOT NULL,
     "defaultProbationMonths" INTEGER NOT NULL,
     "defaultNoticePeriodDays" INTEGER NOT NULL,
     "lateGraceMinutes" INTEGER NOT NULL,

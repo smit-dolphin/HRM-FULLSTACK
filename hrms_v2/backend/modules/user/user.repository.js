@@ -47,3 +47,76 @@ export async function getSubordinateEmployeeIds(employeeId) {
 
     return subordinateIds
 }
+
+
+export async function getUserForUpdate(id) {
+    return await prisma.user.findUnique({
+        where: { id },
+        select: {
+            id: true,
+            email: true,
+            isActive: true,
+            roleId: true,
+            profileImage: true,
+            employee: {
+                select: {
+                    id: true,
+                    departmentId: true,
+                    reportsToId: true
+                }
+            }
+        }
+    })
+}
+
+
+export async function updateUser(id, data) {
+    return await prisma.user.update({
+        where: { id },
+        data,
+        select: {
+            id: true,
+            email: true,
+            isActive: true,
+            roleId: true,
+            profileImage: true,
+            createdAt: true,
+            updatedAt: true,
+            employee: true
+        }
+    })
+}
+
+
+export async function updateUserStatus(id, isActive) {
+    return await prisma.user.update({
+        where: { id },
+        data: { isActive },
+        select: {
+            id: true,
+            email: true,
+            isActive: true,
+            roleId: true,
+            profileImage: true,
+            createdAt: true,
+            updatedAt: true
+        }
+    })
+}
+
+
+export async function updateUserRole(id, roleId) {
+    return await prisma.user.update({
+        where: { id },
+        data: { roleId },
+        select: {
+            id: true,
+            email: true,
+            isActive: true,
+            roleId: true,
+            profileImage: true,
+            createdAt: true,
+            updatedAt: true
+        }
+    })
+}

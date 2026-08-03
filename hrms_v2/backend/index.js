@@ -11,6 +11,7 @@ import { settingRouter } from './modules/setting/setting.route.js'
 import { departmentRouter } from './modules/department/department.router.js'
 import { designationRouter } from './modules/designation/designation.router.js'
 import { holidayRouter } from './modules/holiday/holiday.router.js'
+import { leaveRouter } from './modules/leave/leave.router.js'
 
 
 const app=express()
@@ -41,6 +42,7 @@ app.use('/api/setting',settingRouter)
 app.use('/api/department',departmentRouter)
 app.use('/api/designation',designationRouter)
 app.use('/api/holiday',holidayRouter)
+app.use('/api/leaves',leaveRouter)
 
 app.listen(process.env.PORT, () => {
     console.log("Server running on PORT", process.env.PORT)

@@ -10,6 +10,18 @@ export async function getAllHolidays(options) {
     })
 }
 
+export async function getHolidaysByDateRange(startDate, endDate) {
+    return await prisma.holiday.findMany({
+        where: {
+            date: {
+                gte: startDate,
+                lte: endDate
+            }
+        },
+        select: { date: true }
+    })
+}
+
 export async function countHolidays(where) {
     return await prisma.holiday.count({
         where: where ?? {}

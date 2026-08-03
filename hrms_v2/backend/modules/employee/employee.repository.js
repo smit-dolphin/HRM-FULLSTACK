@@ -19,6 +19,35 @@ export async function createEmployeeOnboarding({ userData, employeeData }) {
             }
         })
 
+        // Fetch applicable leave policies for this employee type
+        const employeeType = employee.employeeType || "INTERN";
+        
+        const applicablePolicies = await transaction.leavePolicy.findMany({
+            where: {
+                employeeType: employeeType,
+                isActive: true
+            }
+        });
+
+        const currentYear = new Date().getFullYear();
+
+        // Create a balance record for each policy
+        const balancePromises = applicablePolicies.map(policy => {
+            return transaction.employeeLeaveBalance.create({
+                data: {
+                    employeeId: employee.id,
+                    leaveTypeId: policy.leaveTypeId,
+                    year: currentYear,
+                    allocated: policy.annualAllocation,
+                    carriedForward: 0,
+                    used: 0,
+                    pending: 0
+                }
+            });
+        });
+
+        await Promise.all(balancePromises);
+
         return { user, employee }
     })
 }

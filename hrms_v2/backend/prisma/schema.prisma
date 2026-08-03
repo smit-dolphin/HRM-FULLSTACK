@@ -128,6 +128,10 @@ model Employee {
   manager      Employee?  @relation("ManagerToEmployee", fields: [reportsToId], references: [id])
   subordinates Employee[] @relation("ManagerToEmployee")
 
+  leaveBalances EmployeeLeaveBalance[]
+  leaveRequests LeaveRequest[]
+  leaveApprovals LeaveApprovalHistory[]
+
   userId String @unique
   user   User   @relation(fields: [userId], references: [id])
 
@@ -202,4 +206,168 @@ model CompneySettings{
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+}
+
+
+
+model LeaveType{
+  id String @id @default(cuid())
+  name String 
+  description String 
+  isActive Boolean @default(false)
+
+  leavePolicies LeavePolicy[]
+
+  balances EmployeeLeaveBalance[]
+  leaveRequests LeaveRequest[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LeavePolicy{
+ id String @id @default(cuid())
+
+ leaveTypeId String
+ leaveType LeaveType @relation(fields:[leaveTypeId],references:[id], onDelete: Cascade)  
+
+ employeeType EmployeeType @default(FULL_TIME)
+ 
+ annualAllocation Float
+
+  carryForward     Boolean @default(false)
+  maxCarryForward  Float?
+
+  monthlyAccrual   Boolean @default(false)
+
+  halfDayAllowed     Boolean @default(true)
+  probationEligible  Boolean @default(true)
+
+  isPaid             Boolean @default(true)
+  requiresApproval   Boolean @default(true)
+
+ isActive Boolean @default(true)
+   
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LeaveSettings {
+  id String @id @default(cuid())
+
+  // Leave Calendar
+  leaveYearStartMonth Int // 1 = January, 4 = April
+
+  // Sandwich Leave
+  sandwichLeaveEnabled    Boolean @default(false)
+  countWeekendInSandwich  Boolean @default(false)
+  countHolidayInSandwich  Boolean @default(false)
+
+  // Backdated Leave
+  allowBackdatedLeave Boolean @default(false)
+  backdatedLimitDays  Int?
+
+  // Future Leave
+  allowFutureLeave Boolean @default(true)
+  futureLimitDays  Int?
+
+  // General Restrictions
+  defaultMinNoticeDays        Int?
+  defaultMaxConsecutiveDays   Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model EmployeeLeaveBalance {
+  id String @id @default(cuid())
+
+  employeeId String
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  leaveTypeId String
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+
+  year Int
+
+  // From LeavePolicy
+  allocated Float @default(0)
+
+  // Previous year remaining leaves
+  carriedForward Float @default(0)
+
+  // Leaves already approved and used
+  used Float @default(0)
+
+  // Leave requests waiting for approval
+  pending Float @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([employeeId, leaveTypeId, year])
+}
+
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum LeaveApprovalAction {
+  APPROVED
+  REJECTED
+}
+
+model LeaveRequest {
+  id String @id @default(cuid())
+
+  // Employee
+  employeeId String
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  // Leave Type
+  leaveTypeId String
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
+
+  // Leave Duration
+  startDate DateTime
+  endDate DateTime
+  totalDays Float
+
+  // Half-day support
+  isHalfDay Boolean @default(false)
+
+  // Employee reason
+  reason String?
+
+  // Approval Status
+  status LeaveStatus @default(PENDING)
+
+  // Cancellation
+  cancelledReason String?
+
+  // Approval History
+  approvalHistories LeaveApprovalHistory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+model LeaveApprovalHistory {
+  id String @id @default(cuid())
+
+  leaveRequestId String
+  leaveRequest LeaveRequest @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
+
+  actionById String
+  actionBy Employee @relation(fields: [actionById], references: [id])
+
+  action LeaveApprovalAction
+  comment String?
+
+  createdAt DateTime @default(now())
 }

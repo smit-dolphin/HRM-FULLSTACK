@@ -11,7 +11,7 @@ import authenticatUser from "../../middleware/authenticate.middleware.js"
 
 const router = Router()
 
-router.post("/onboarding", authorize('employee', 'create'), employeeOnboarding)
+router.post("/onboarding", authenticatUser, authorize('employee', 'create'), employeeOnboarding)
 router.get("/", authenticatUser, authorize('employee', 'list'), getEmployees)
 router.get("/:id", authenticatUser, authorize('employee', 'view'), getEmployeeById)
 router.patch("/:id", authenticatUser, authorize('employee', 'update'), updateEmployee)

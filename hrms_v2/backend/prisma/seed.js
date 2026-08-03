@@ -62,6 +62,14 @@ const permissions = [
   { resource: "holiday", action: "list" },
   { resource: "holiday", action: "update" },
   { resource: "holiday", action: "delete" },
+
+  // ==========================
+  // Leave
+  // ==========================
+  { resource: "leave", action: "list" },
+  { resource: "leave", action: "view" },
+  { resource: "leave", action: "approve" },
+  { resource: "leave", action: "reject" },
 ];
 
 async function main() {
@@ -158,6 +166,141 @@ async function main() {
   } else {
     console.log("✅ Company Settings already exist, skipping...");
   }
+
+  // 5.5 Seed default Leave Settings
+  const defaultLeaveSettings = await prisma.leaveSettings.findFirst();
+  if (!defaultLeaveSettings) {
+    await prisma.leaveSettings.create({
+      data: {
+        leaveYearStartMonth: 1, // 1 = January
+        sandwichLeaveEnabled: false,
+        countWeekendInSandwich: false,
+        countHolidayInSandwich: false,
+        allowBackdatedLeave: false,
+        allowFutureLeave: true,
+      },
+    });
+    console.log("✅ Seeded default Leave Settings");
+  } else {
+    console.log("✅ Leave Settings already exist, skipping...");
+  }
+
+  // 6. Seed Leave Types and Policies
+  const leaveTypes = [
+    {
+      name: "Annual Leave",
+      description: "Standard yearly leave for all employees",
+      isActive: true,
+      policies: [
+        {
+          employeeType: "FULL_TIME",
+          annualAllocation: 12,
+          carryForward: true,
+          maxCarryForward: 6,
+          monthlyAccrual: true,
+          halfDayAllowed: true,
+          probationEligible: false,
+          isPaid: true,
+          requiresApproval: true,
+          isActive: true,
+        },
+        {
+          employeeType: "INTERN",
+          annualAllocation: 0,
+          carryForward: false,
+          maxCarryForward: null,
+          monthlyAccrual: false,
+          halfDayAllowed: false,
+          probationEligible: false,
+          isPaid: false,
+          requiresApproval: true,
+          isActive: true,
+        }
+      ]
+    },
+    {
+      name: "Sick Leave",
+      description: "Leave for medical emergencies or illness",
+      isActive: true,
+      policies: [
+        {
+          employeeType: "FULL_TIME",
+          annualAllocation: 6,
+          carryForward: false,
+          maxCarryForward: null,
+          monthlyAccrual: false,
+          halfDayAllowed: true,
+          probationEligible: true,
+          isPaid: true,
+          requiresApproval: true,
+          isActive: true,
+        },
+        {
+          employeeType: "INTERN",
+          annualAllocation: 2,
+          carryForward: false,
+          maxCarryForward: null,
+          monthlyAccrual: false,
+          halfDayAllowed: true,
+          probationEligible: true,
+          isPaid: true,
+          requiresApproval: true,
+          isActive: true,
+        }
+      ]
+    },
+    {
+      name: "Casual Leave",
+      description: "Leave for personal matters and emergencies",
+      isActive: true,
+      policies: [
+        {
+          employeeType: "FULL_TIME",
+          annualAllocation: 6,
+          carryForward: false,
+          maxCarryForward: null,
+          monthlyAccrual: false,
+          halfDayAllowed: true,
+          probationEligible: false,
+          isPaid: true,
+          requiresApproval: true,
+          isActive: true,
+        },
+        {
+          employeeType: "INTERN",
+          annualAllocation: 6,
+          carryForward: false,
+          maxCarryForward: null,
+          monthlyAccrual: false,
+          halfDayAllowed: true,
+          probationEligible: true,
+          isPaid: true,
+          requiresApproval: true,
+          isActive: true,
+        }
+      ]
+    }
+  ];
+
+  for (const lt of leaveTypes) {
+    const existingLeaveType = await prisma.leaveType.findFirst({
+      where: { name: lt.name },
+    });
+
+    if (!existingLeaveType) {
+      await prisma.leaveType.create({
+        data: {
+          name: lt.name,
+          description: lt.description,
+          isActive: lt.isActive,
+          leavePolicies: {
+            create: lt.policies,
+          },
+        },
+      });
+    }
+  }
+  console.log("✅ Seeded default Leave Types and Policies");
 
   console.log("🎉 Seeding completed successfully!");
 }

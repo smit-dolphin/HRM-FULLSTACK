@@ -38,19 +38,34 @@ export const getCompanySettings = () => {
     return prisma.compneySettings.findFirst();
 };
 
-export const getLeaveBalance = (
+export const getLeaveBalance = (where = {}) => {
+    return prisma.employeeLeaveBalance.findFirst({
+        where
+    });
+};
+
+export const getEmployeeLeaveBalances = (where = {}) => {
+    return prisma.employeeLeaveBalance.findMany({
+        where,
+        include: { leaveType: true }
+    });
+};
+
+export const updateEmployeeLeaveBalance = ({
     employeeId,
     leaveTypeId,
-    year
-) => {
-    return prisma.employeeLeaveBalance.findUnique({
+    year,
+    data
+}) => {
+    return prisma.employeeLeaveBalance.update({
         where: {
             employeeId_leaveTypeId_year: {
                 employeeId,
                 leaveTypeId,
                 year
             }
-        }
+        },
+        data
     });
 };
 
@@ -82,7 +97,10 @@ export const applyLeaveTransaction = ({
     endDate,
     totalDays,
     reason,
-    isHalfDay
+    isHalfDay,
+    actionById,
+    leaveYear,
+    status
 }) => {
 
     return prisma.$transaction(async (tx) => {
@@ -95,7 +113,8 @@ export const applyLeaveTransaction = ({
                 endDate: new Date(endDate),
                 totalDays,
                 reason,
-                isHalfDay
+                isHalfDay,
+                status
             }
         });
 
@@ -104,13 +123,20 @@ export const applyLeaveTransaction = ({
                 employeeId_leaveTypeId_year: {
                     employeeId,
                     leaveTypeId,
-                    year: new Date(startDate).getFullYear()
+                    year: leaveYear
                 }
             },
+            data: status === "PENDING"
+                ? { pending: { increment: totalDays } }
+                : { used: { increment: totalDays } }
+        });
+
+        await tx.leaveHistory.create({
             data: {
-                pending: {
-                    increment: totalDays
-                }
+                leaveRequestId: leave.id,
+                actionById,
+                action: "APPLIED",
+                comment: reason
             }
         });
 
@@ -203,8 +229,71 @@ export const approveOrRejectLeaveTransaction = ({
             : { pending: { decrement: leaveRequest.totalDays } }
     });
 
-    await tx.leaveApprovalHistory.create({
+    await tx.leaveHistory.create({
         data: { leaveRequestId, actionById, action, comment }
+    });
+
+    return updatedLeave;
+});
+
+export const cancelLeaveTransaction = ({
+    leaveRequestId,
+    actionById,
+    comment,
+    year
+}) => prisma.$transaction(async (tx) => {
+    const leaveRequest = await tx.leaveRequest.findUnique({
+        where: { id: leaveRequestId },
+        select: { id: true, employeeId: true, leaveTypeId: true, totalDays: true, status: true }
+    });
+
+    if (!leaveRequest) {
+        const error = new Error("Leave request not found.");
+        error.code = "LEAVE_NOT_FOUND";
+        throw error;
+    }
+    if (leaveRequest.status === "CANCELLED" || leaveRequest.status === "REJECTED") {
+        const error = new Error("Only pending or approved leave requests can be cancelled.");
+        error.code = "LEAVE_NOT_CANCELLABLE";
+        throw error;
+    }
+
+    const balance = await tx.employeeLeaveBalance.findUnique({
+        where: {
+            employeeId_leaveTypeId_year: {
+                employeeId: leaveRequest.employeeId,
+                leaveTypeId: leaveRequest.leaveTypeId,
+                year
+            }
+        }
+    });
+    if (!balance) {
+        const error = new Error("Leave balance not found for this leave year.");
+        error.code = "BALANCE_NOT_FOUND";
+        throw error;
+    }
+
+    const updatedLeave = await tx.leaveRequest.update({
+        where: { id: leaveRequestId },
+        data: { status: "CANCELLED", cancelledReason: comment },
+        include: { employee: true, leaveType: true }
+    });
+
+    await tx.employeeLeaveBalance.update({
+        where: {
+            employeeId_leaveTypeId_year: {
+                employeeId: leaveRequest.employeeId,
+                leaveTypeId: leaveRequest.leaveTypeId,
+                year
+            }
+        },
+        data: leaveRequest.status === "APPROVED"
+            ? { used: { decrement: leaveRequest.totalDays } }
+            : { pending: { decrement: leaveRequest.totalDays } }
+    });
+
+    await tx.leaveHistory.create({
+        data: { leaveRequestId, actionById, action: "CANCELLED", comment }
     });
 
     return updatedLeave;

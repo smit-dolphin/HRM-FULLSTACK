@@ -10,7 +10,7 @@ import {
 
 
 export const employeeOnboarding = asyncHandler(async (req, res) => {
-    const result = await employeeOnboardingService(req.body)
+    const result = await employeeOnboardingService(req.body,req.file)
 
     if (!result.success) {
         return errorResponse(res, result.status, result.message, result.error)

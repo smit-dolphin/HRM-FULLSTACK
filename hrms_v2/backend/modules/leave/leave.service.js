@@ -1,4 +1,3 @@
-import prisma from "../../config/prisma.config.js";
 import {
     getEmployeeById,
     getLeavePolicy,
@@ -7,11 +6,16 @@ import {
     getCompanySettings,
     getPendingLeaveRequests,
     getLeaveRequestForApproval,
-    approveOrRejectLeaveTransaction
+    approveOrRejectLeaveTransaction,
+    cancelLeaveTransaction,
+    applyLeaveTransaction,
+    getEmployeeLeaveBalances,
+    getLeaveBalance,
+    updateEmployeeLeaveBalance
 } from "./leave.repository.js";
 import { getHolidaysByDateRange } from "../holiday/holiday.repository.js";
-import { applyLeaveSchema, leaveApprovalSchema } from "./leave.validation.js";
-import { getLeaveListPolicy, canApproveLeave, canRejectLeave } from "./leave.policy.js";
+import { applyLeaveSchema, leaveApprovalSchema, cancelLeaveSchema, updateLeaveBalanceSchema } from "./leave.validation.js";
+import { getLeaveListPolicy, canApproveLeave, canRejectLeave, canCancelLeave, getLeaveBalancePolicy, getUpdateLeaveBalancePolicy, canUpdateLeaveBalance } from "./leave.policy.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -174,47 +178,19 @@ export const applyLeaveService = async (employeeId, reqBody) => {
             settings: leaveSettings, companySettings, holidays
         });
 
-        const result = await prisma.$transaction(async (tx) => {
-            const overlap = await tx.leaveRequest.findFirst({
-                where: {
-                    employeeId,
-                    status: { in: ["PENDING", "APPROVED"] },
-                    startDate: { lte: endDate },
-                    endDate: { gte: startDate }
-                },
-                select: { id: true }
-            });
-            if (overlap) throw new LeaveValidationError("Leave already exists for the selected dates.");
-
-            const currentBalance = await tx.employeeLeaveBalance.findUnique({
-                where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: data.leaveTypeId, year: leaveYear } }
-            });
-            if (!currentBalance) throw new LeaveValidationError("Leave balance not found for this leave year.", 404);
-
-            const available = currentBalance.allocated + currentBalance.carriedForward - currentBalance.used - currentBalance.pending;
-            if (available < totalDays) throw new LeaveValidationError("Insufficient leave balance.");
-
-            const status = leavePolicy.requiresApproval ? "PENDING" : "APPROVED";
-            const leaveRequest = await tx.leaveRequest.create({
-                data: {
-                    employeeId,
-                    leaveTypeId: data.leaveTypeId,
-                    startDate,
-                    endDate,
-                    totalDays,
-                    reason: data.reason,
-                    isHalfDay: data.isHalfDay,
-                    status
-                }
-            });
-            await tx.employeeLeaveBalance.update({
-                where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: data.leaveTypeId, year: leaveYear } },
-                data: leavePolicy.requiresApproval
-                    ? { pending: { increment: totalDays } }
-                    : { used: { increment: totalDays } }
-            });
-            return leaveRequest;
-        }, { isolationLevel: "Serializable" });
+        const status = leavePolicy.requiresApproval ? "PENDING" : "APPROVED";
+        const result = await applyLeaveTransaction({
+            employeeId,
+            leaveTypeId: data.leaveTypeId,
+            startDate,
+            endDate,
+            totalDays,
+            reason: data.reason,
+            isHalfDay: data.isHalfDay,
+            actionById: employeeId,
+            leaveYear,
+            status
+        });
 
         return { success: true, status: 201, message: "Leave request created successfully.", data: result };
     } catch (error) {
@@ -279,5 +255,141 @@ export const approveOrRejectLeaveService = async (leaveRequestId, actionById, sc
         throw error;
     }
 };
+
+
+export const cancLeaveService = async (leaveRequestId, actionById, scope, action, reqBody) => {
+    if (!actionById) return { success: false, status: 401, message: "Employee account is required." };
+
+    const parsed = cancelLeaveSchema.safeParse(reqBody || {});
+    if (!parsed.success) {
+        return { success: false, status: 400, message: "Invalid cancellation data.", error: parsed.error.issues[0].message };
+    }
+
+    try {
+        const [settings, request] = await Promise.all([
+            getLeaveSettings(),
+            getLeaveRequestForApproval(leaveRequestId)
+        ]);
+
+        if (!settings) throw new LeaveValidationError("Leave settings are not configured.", 500);
+        if (!request) throw new LeaveValidationError("Leave request not found.", 404);
+        if (request.status === "CANCELLED" || request.status === "REJECTED") {
+            throw new LeaveValidationError("Only pending or approved leave requests can be cancelled.", 409);
+        }
+
+        const policyResult = await canCancelLeave(request, scope, { employeeId: actionById });
+        if (!policyResult.allowed) {
+            throw new LeaveValidationError(policyResult.message, policyResult.status);
+        }
+
+        const result = await cancelLeaveTransaction({
+            leaveRequestId,
+            actionById,
+            comment: parsed.data.comment,
+            year: leaveYearFor(dateOnly(request.startDate), settings.leaveYearStartMonth)
+        });
+
+        return {
+            success: true,
+            status: 200,
+            message: "Leave cancelled successfully.",
+            data: result
+        };
+    } catch (error) {
+        if (error instanceof LeaveValidationError) return { success: false, status: error.status, message: error.message };
+        if (error.code === "LEAVE_NOT_FOUND") return { success: false, status: 404, message: error.message };
+        if (error.code === "LEAVE_NOT_CANCELLABLE") return { success: false, status: 409, message: error.message };
+        if (error.code === "BALANCE_NOT_FOUND") return { success: false, status: 404, message: error.message };
+        throw error;
+    }
+};
+
+
+export const getLeaveBalanceService = async (employeeId, actionById, scope) => {
+    // 1. validate calling user and target employee id
+    // 2. fetch target employee for scope checks
+    // 3. authorize by scope using policy layer
+    // 4. fetch balance records and return them
+    if (!actionById) return { success: false, status: 401, message: "Employee account is required." };
+    if (!employeeId) return { success: false, status: 400, message: "Target employee id is required." };
+
+    try {
+        const targetEmployee = await getEmployeeById(employeeId);
+        if (!targetEmployee) throw new LeaveValidationError("Employee not found.", 404);
+
+        const where = await getLeaveBalancePolicy({ employeeId }, scope, { employeeId: actionById });
+        const balances = await getEmployeeLeaveBalances(where);
+        return {
+            success: true,
+            status: 200,
+            message: "Leave balance fetched successfully.",
+            data: balances
+        };
+    } catch (error) {
+        if (error instanceof LeaveValidationError) return { success: false, status: error.status, message: error.message };
+        throw error;
+    }
+};
+
+export const updateEmployeeLeaveBalanceService = async (employeeId, actionById, scope, reqBody) => {
+    // 1. validate calling user and target employee id
+    // 2. validate request body fields
+    // 3. fetch target employee and existing balance record
+    // 4. authorize by scope using policy layer
+    // 5. apply partial balance updates
+    const parsed = updateLeaveBalanceSchema.safeParse(reqBody || {});
+    if (!parsed.success) {
+        return { success: false, status: 400, message: "Invalid balance update data.", error: parsed.error.issues[0].message };
+    }
+    if (!actionById) return { success: false, status: 401, message: "Employee account is required." };
+    if (!employeeId) return { success: false, status: 400, message: "Target employee id is required." };
+
+    try {
+        const data = parsed.data;
+        const targetEmployee = await getEmployeeById(employeeId);
+        if (!targetEmployee) throw new LeaveValidationError("Employee not found.", 404);
+
+        const policyResult = await canUpdateLeaveBalance(targetEmployee, scope, { employeeId: actionById });
+        if (!policyResult.allowed) {
+            throw new LeaveValidationError(policyResult.message, policyResult.status);
+        }
+
+        const filteredWhere = await getUpdateLeaveBalancePolicy(
+            { employeeId, leaveTypeId: data.leaveTypeId, year: data.year },
+            scope,
+            { employeeId: actionById }
+        );
+        const existingBalance = await getLeaveBalance(filteredWhere);
+        if (!existingBalance) throw new LeaveValidationError("Leave balance not found for this leave year.", 404);
+
+        const updateData = {};
+        if (data.allocated !== undefined) updateData.allocated = data.allocated;
+        if (data.carriedForward !== undefined) updateData.carriedForward = data.carriedForward;
+        if (data.used !== undefined) updateData.used = data.used;
+        if (data.pending !== undefined) updateData.pending = data.pending;
+
+        if (!Object.keys(updateData).length) {
+            return { success: false, status: 400, message: "No balance fields provided to update." };
+        }
+
+        const updatedBalance = await updateEmployeeLeaveBalance({
+            employeeId,
+            leaveTypeId: data.leaveTypeId,
+            year: data.year,
+            data: updateData
+        });
+
+        return {
+            success: true,
+            status: 200,
+            message: "Leave balance updated successfully.",
+            data: updatedBalance
+        };
+    } catch (error) {
+        if (error instanceof LeaveValidationError) return { success: false, status: error.status, message: error.message };
+        throw error;
+    }
+};
+
 
 export { calculateLeaveDays, leaveYearFor };

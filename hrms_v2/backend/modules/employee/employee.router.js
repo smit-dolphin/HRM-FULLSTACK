@@ -7,11 +7,12 @@ import {
 } from "./employee.controller.js"
 import { authorize } from "../../middleware/authorize.middleware.js"
 import authenticatUser from "../../middleware/authenticate.middleware.js"
+import { upload } from "../../middleware/upload.middleware.js"
 
 
 const router = Router()
 
-router.post("/onboarding", authenticatUser, authorize('employee', 'create'), employeeOnboarding)
+router.post("/onboarding", authenticatUser, authorize('employee', 'create'),upload.single('profileImage'), employeeOnboarding)
 router.get("/", authenticatUser, authorize('employee', 'list'), getEmployees)
 router.get("/:id", authenticatUser, authorize('employee', 'view'), getEmployeeById)
 router.patch("/:id", authenticatUser, authorize('employee', 'update'), updateEmployee)

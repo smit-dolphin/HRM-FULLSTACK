@@ -130,7 +130,7 @@ model Employee {
 
   leaveBalances EmployeeLeaveBalance[]
   leaveRequests LeaveRequest[]
-  leaveApprovals LeaveApprovalHistory[]
+  leaveApprovals LeaveHistory[]
 
   userId String @unique
   user   User   @relation(fields: [userId], references: [id])
@@ -316,9 +316,12 @@ enum LeaveStatus {
   CANCELLED
 }
 
-enum LeaveApprovalAction {
+enum LeaveAction {
+  APPLIED
+  UPDATED
   APPROVED
   REJECTED
+  CANCELLED
 }
 
 model LeaveRequest {
@@ -350,14 +353,14 @@ model LeaveRequest {
   cancelledReason String?
 
   // Approval History
-  approvalHistories LeaveApprovalHistory[]
+  approvalHistories LeaveHistory[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 
-model LeaveApprovalHistory {
+model LeaveHistory {
   id String @id @default(cuid())
 
   leaveRequestId String
@@ -366,7 +369,7 @@ model LeaveApprovalHistory {
   actionById String
   actionBy Employee @relation(fields: [actionById], references: [id])
 
-  action LeaveApprovalAction
+  action LeaveAction
   comment String?
 
   createdAt DateTime @default(now())

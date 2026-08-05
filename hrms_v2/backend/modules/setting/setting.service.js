@@ -1,8 +1,14 @@
 import {
-    updateCompneyPolicy
+    updateCompneyPolicy,
+    updateLeaveSettings,
+    updateLeavePolicy,
+    createLeavePolicy
 } from "./setting.reposetry.js"
 import {
-    updateCompanySettingsSchema
+    updateCompanySettingsSchema,
+    updateLeaveSettingsSchema,
+    updateLeavePolicySchema,
+    createLeavePolicySchema
 } from "./setting.validation.js"
 
 
@@ -77,4 +83,92 @@ export const updateCompneyPolicyService = async (reqBody) => {
 
 
 
+}
+
+
+export const updateCompneyLeaveSettingService = async (reqBody) => {
+    // how we are going to make edit settings service??
+    // we can just have to edit the db record
+    // get all fields , validate them, update the db record,
+    // what about after math?? what about employees who is still connected to leaves or apply leaves?
+    // i should try
+
+    const validateResult = updateLeaveSettingsSchema.safeParse(reqBody)
+
+    if (!validateResult.success) {
+        return {
+            success: false,
+            status: 400,
+            message: "Invalid leave settings fields",
+            error: validateResult.error.issues[0].message
+        }
+    }
+
+    // field validation done, now update the db record
+    const update_result = await updateLeaveSettings({
+        data: validateResult.data
+    })
+
+    return {
+        success: true,
+        status: 200,
+        message: "leave settings updated successfully",
+        data: update_result
+    }
+}
+
+export const createLeavePolicySettingService = async (reqBody) => {
+    const validateResult = createLeavePolicySchema.safeParse(reqBody)
+
+    if (!validateResult.success) {
+        return {
+            success: false,
+            status: 400,
+            message: "Invalid leave policy fields",
+            error: validateResult.error.issues[0].message
+        }
+    }
+
+    const create_result = await createLeavePolicy({
+        data: validateResult.data
+    })
+
+    return {
+        success: true,
+        status: 201,
+        message: "leave policy created successfully",
+        data: create_result
+    }
+}
+
+export const updateLeavePolicySettingService = async (leavePolicyId, reqBody) => {
+    const validateResult = updateLeavePolicySchema.safeParse(reqBody)
+
+    if (!validateResult.success) {
+        return {
+            success: false,
+            status: 400,
+            message: "Invalid leave policy fields",
+            error: validateResult.error.issues[0].message
+        }
+    }
+
+    if (!leavePolicyId) {
+        return {
+            success: false,
+            status: 400,
+            message: "Leave policy id is required."
+        }
+    }
+
+    const update_result = await updateLeavePolicy(leavePolicyId, {
+        data: validateResult.data
+    })
+
+    return {
+        success: true,
+        status: 200,
+        message: "leave policy updated successfully",
+        data: update_result
+    }
 }

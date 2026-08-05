@@ -35,6 +35,8 @@ const permissions = [
   // ==========================
   { resource: "company_settings", action: "update" },
   { resource: "company_settings", action: "view" },
+  { resource: "leave_settings", action: "update" },
+  { resource: "leave_settings", action: "view" },
 
   // ==========================
   // Department

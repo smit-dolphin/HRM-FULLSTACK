@@ -16,6 +16,7 @@ import {
 import { paginationHelper } from "../../helper/paginationHelper.js"
 import { booleanFilter, dateRangeFilter, searchHelper, enumFilter } from "../../helper/queryBuilder.js"
 import { getEmployeeListPolicy, canUpdateEmployee, getAllowedEmployeeUpdateFields } from "./employee.policy.js"
+import uploadFile from "../../util/uploadFile.js"
 
 
 //employee onboarding service 
@@ -55,7 +56,7 @@ import { getEmployeeListPolicy, canUpdateEmployee, getAllowedEmployeeUpdateField
 //now create transition
 //first create user
 //then create employee 
-export const employeeOnboardingService = async (reqBody) => {
+export const employeeOnboardingService = async (reqBody,reqFile) => {
     const validatedData = employeeOnboardingSchema.safeParse(reqBody)
 
     if (!validatedData.success) {
@@ -71,7 +72,7 @@ export const employeeOnboardingService = async (reqBody) => {
         email,
         password,
         roleId,
-        profileImage,
+        // profileImage,
         firstName,
         lastName,
         phone,
@@ -102,12 +103,14 @@ export const employeeOnboardingService = async (reqBody) => {
         const calculatedEmploymentStatus = probationMonths > 0 ? "PROBATION" : "ACTIVE"
         const hashedPassword = await bcrypt.hash(password, 10)
 
+        const uploadedAvatar=await uploadFile(reqFile)
+
         const result = await createEmployeeOnboarding({
             userData: {
                 email,
                 password: hashedPassword,
                 roleId,
-                profileImage: profileImage ?? null
+                profileImage: uploadedAvatar.url ?? null
             },
             employeeData: {
                 firstName,
